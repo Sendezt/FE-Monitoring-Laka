@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#stich
+stitch_screen.html
+stitch_screenshot.png
