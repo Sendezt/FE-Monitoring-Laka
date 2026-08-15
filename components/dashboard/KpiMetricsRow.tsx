@@ -8,7 +8,7 @@ interface KpiMetricsRowProps {
 }
 
 export default function KpiMetricsRow({ stats }: KpiMetricsRowProps) {
-  // Helper to parse numerical percentage values for stacked progress bar
+  // Helper to parse numerical percentage values for Pie Chart angles
   const parsePct = (pctStr?: string): number => {
     if (!pctStr) return 0;
     const clean = pctStr.replace("%", "").trim();
@@ -24,6 +24,46 @@ export default function KpiMetricsRow({ stats }: KpiMetricsRowProps) {
   const flex1 = (pct1 / totalLatePct) * 100;
   const flex2 = (pct2 / totalLatePct) * 100;
   const flex3 = (pct3 / totalLatePct) * 100;
+
+  const angle1 = (flex1 / 100) * 360;
+  const angle2 = angle1 + (flex2 / 100) * 360;
+  const angle3 = 359.999; // Cap just below 360 for SVG arc calculation
+
+  // SVG Pie Chart Geometry Helpers
+  const cx = 90;
+  const cy = 90;
+  const r = 80;
+
+  const getPieSlicePath = (startAngle: number, endAngle: number) => {
+    if (endAngle - startAngle >= 359.9) {
+      return `M ${cx - r} ${cy} a ${r} ${r} 0 1,0 ${r * 2} 0 a ${r} ${r} 0 1,0 -${r * 2} 0`;
+    }
+    const rad1 = ((startAngle - 90) * Math.PI) / 180;
+    const rad2 = ((endAngle - 90) * Math.PI) / 180;
+
+    const x1 = cx + r * Math.cos(rad1);
+    const y1 = cy + r * Math.sin(rad1);
+    const x2 = cx + r * Math.cos(rad2);
+    const y2 = cy + r * Math.sin(rad2);
+
+    const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+    return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+  };
+
+  const getSliceLabelPos = (startAngle: number, endAngle: number) => {
+    const midAngle = startAngle + (endAngle - startAngle) / 2;
+    const midRad = ((midAngle - 90) * Math.PI) / 180;
+    const labelR = r * 0.55; // Placed inside the slice area
+    return {
+      x: cx + labelR * Math.cos(midRad),
+      y: cy + labelR * Math.sin(midRad),
+    };
+  };
+
+  const pos1 = getSliceLabelPos(0, angle1);
+  const pos2 = getSliceLabelPos(angle1, angle2);
+  const pos3 = getSliceLabelPos(angle2, angle3);
 
   return (
     <div className="space-y-4 font-sans">
@@ -156,7 +196,7 @@ export default function KpiMetricsRow({ stats }: KpiMetricsRowProps) {
           </div>
         </div>
 
-        {/* CARD 2: DISTRIBUSI KETERLAMBATAN */}
+        {/* CARD 2: DISTRIBUSI KETERLAMBATAN (SVG Pie Chart with Inner Slice Percentages & Clean Count Legend) */}
         <div className="bg-surface-container-lowest border border-outline-variant/70 border-l-[5px] border-l-[#DC2626] rounded-2xl p-5 md:p-6 shadow-soft flex flex-col justify-between relative overflow-hidden group hover:shadow-floating transition-all duration-200">
           <div>
             {/* Header */}
@@ -198,109 +238,152 @@ export default function KpiMetricsRow({ stats }: KpiMetricsRowProps) {
                   className="w-8 h-8 rounded-xl bg-[#DC2626]/10 group-hover:bg-[#DC2626] flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-base text-[#DC2626] group-hover:text-white transition-colors">
-                    {stats.terlambatLaporLoading ? "sync" : "bar_chart"}
+                    {stats.terlambatLaporLoading ? "sync" : "pie_chart"}
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* Stacked Progress Bar */}
-            <div className="my-6">
-              {stats.terlambatLaporLoading ? (
-                <div className="h-6 w-full rounded-xl bg-outline-variant/20 animate-pulse" />
-              ) : (
-                <div className="h-6 w-full bg-outline-variant/20 rounded-xl overflow-hidden flex gap-1 p-0.5 shadow-inner">
-                  {/* Segment 1: 1-3 Hari */}
-                  <div
-                    style={{ width: `${flex1}%` }}
-                    className="bg-amber-500 h-full rounded-l-lg transition-all duration-500"
-                    title={`1-3 Hari: ${stats.late3Days?.count} (${stats.late3Days?.pct})`}
-                  />
-                  {/* Segment 2: 4-7 Hari */}
-                  <div
-                    style={{ width: `${flex2}%` }}
-                    className="bg-orange-500 h-full transition-all duration-500"
-                    title={`4-7 Hari: ${stats.late7Days?.count} (${stats.late7Days?.pct})`}
-                  />
-                  {/* Segment 3: >7 Hari */}
-                  <div
-                    style={{ width: `${flex3}%` }}
-                    className="bg-rose-500 h-full rounded-r-lg transition-all duration-500"
-                    title={`>7 Hari: ${stats.lateMoreDays?.count} (${stats.lateMoreDays?.pct})`}
-                  />
+            {/* Content: SVG Solid Pie Chart on Left + Segment Details (Count only) on Right */}
+            {stats.terlambatLaporLoading ? (
+              <div className="flex flex-col sm:flex-row items-center gap-6 my-4">
+                <div className="w-36 h-36 rounded-full bg-outline-variant/20 animate-pulse flex-shrink-0" />
+                <div className="flex-1 w-full space-y-2.5">
+                  <div className="h-10 w-full rounded-xl bg-outline-variant/20 animate-pulse" />
+                  <div className="h-10 w-full rounded-xl bg-outline-variant/20 animate-pulse" />
+                  <div className="h-10 w-full rounded-xl bg-outline-variant/20 animate-pulse" />
                 </div>
-              )}
-            </div>
-
-            {/* 3 Metrics Columns */}
-            <div className="grid grid-cols-3 divide-x divide-outline-variant/30 pt-1">
-              {/* Column 1: 1-3 HARI */}
-              <div className="pr-3">
-                <div className="text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-1">
-                  1-3 HARI
-                </div>
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-7 w-12 rounded bg-outline-variant/20 animate-pulse" />
-                ) : (
-                  <div className="text-xl md:text-2xl font-extrabold text-on-surface tabular-nums">
-                    {stats.late3Days?.count}
-                  </div>
-                )}
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-4 w-10 rounded bg-outline-variant/20 animate-pulse mt-1" />
-                ) : (
-                  <div className="text-xs font-semibold text-on-surface-variant/80 mt-0.5 tabular-nums">
-                    {stats.late3Days?.pct}
-                  </div>
-                )}
               </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-6 my-3">
+                {/* Left Side: Solid Pie Chart with Thick Separator Borders & Inner Slice Percentages */}
+                <div className="flex-shrink-0 relative flex items-center justify-center p-1">
+                  <svg
+                    viewBox="0 0 180 180"
+                    className="w-36 h-36 md:w-40 md:h-40 drop-shadow-lg transition-transform group-hover:scale-105 duration-300 overflow-visible"
+                  >
+                    {/* Slice 1: 1-3 Hari (Amber Gold: #F59E0B) */}
+                    {flex1 > 0 && (
+                      <path
+                        d={getPieSlicePath(0, angle1)}
+                        fill="#F59E0B"
+                        stroke="#ffffff"
+                        strokeWidth="3.5"
+                        strokeLinejoin="round"
+                      />
+                    )}
 
-              {/* Column 2: 4-7 HARI */}
-              <div className="px-3">
-                <div className="text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-1">
-                  4-7 HARI
-                </div>
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-7 w-12 rounded bg-outline-variant/20 animate-pulse" />
-                ) : (
-                  <div className="text-xl md:text-2xl font-extrabold text-on-surface tabular-nums">
-                    {stats.late7Days?.count}
-                  </div>
-                )}
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-4 w-10 rounded bg-outline-variant/20 animate-pulse mt-1" />
-                ) : (
-                  <div className="text-xs font-semibold text-on-surface-variant/80 mt-0.5 tabular-nums">
-                    {stats.late7Days?.pct}
-                  </div>
-                )}
-              </div>
+                    {/* Slice 2: 4-7 Hari (Deep Indigo: #6366F1) */}
+                    {flex2 > 0 && (
+                      <path
+                        d={getPieSlicePath(angle1, angle2)}
+                        fill="#6366F1"
+                        stroke="#ffffff"
+                        strokeWidth="3.5"
+                        strokeLinejoin="round"
+                      />
+                    )}
 
-              {/* Column 3: >7 HARI */}
-              <div className="pl-3">
-                <div className="text-[11px] font-bold text-on-surface-variant tracking-wider uppercase mb-1">
-                  &gt;7 HARI
+                    {/* Slice 3: >7 Hari (Crimson Rose: #E11D48) */}
+                    {flex3 > 0 && (
+                      <path
+                        d={getPieSlicePath(angle2, angle3)}
+                        fill="#E11D48"
+                        stroke="#ffffff"
+                        strokeWidth="3.5"
+                        strokeLinejoin="round"
+                      />
+                    )}
+
+                    {/* Percentages INSIDE Slices */}
+                    {flex1 >= 3 && (
+                      <text
+                        x={pos1.x}
+                        y={pos1.y}
+                        fill="#ffffff"
+                        fontSize="12"
+                        fontWeight="900"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        className="drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.7)] pointer-events-none select-none tracking-tight"
+                      >
+                        {stats.late3Days?.pct}
+                      </text>
+                    )}
+
+                    {flex2 >= 3 && (
+                      <text
+                        x={pos2.x}
+                        y={pos2.y}
+                        fill="#ffffff"
+                        fontSize="12"
+                        fontWeight="900"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        className="drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.7)] pointer-events-none select-none tracking-tight"
+                      >
+                        {stats.late7Days?.pct}
+                      </text>
+                    )}
+
+                    {flex3 >= 3 && (
+                      <text
+                        x={pos3.x}
+                        y={pos3.y}
+                        fill="#ffffff"
+                        fontSize="12"
+                        fontWeight="900"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        className="drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.7)] pointer-events-none select-none tracking-tight"
+                      >
+                        {stats.lateMoreDays?.pct}
+                      </text>
+                    )}
+                  </svg>
                 </div>
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-7 w-12 rounded bg-outline-variant/20 animate-pulse" />
-                ) : (
-                  <div className="text-xl md:text-2xl font-extrabold text-on-surface tabular-nums">
-                    {stats.lateMoreDays?.count}
+
+                {/* Right Side: High-Contrast Colored Legend Segments (Count only) */}
+                <div className="flex-1 w-full space-y-2">
+                  {/* Segment 1: 1-3 Hari (Amber) */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/15 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#F59E0B] shadow-sm flex-shrink-0 border border-white" />
+                      <span className="text-xs font-bold text-on-surface">1-3 HARI</span>
+                    </div>
+                    <span className="text-sm font-extrabold text-on-surface tabular-nums">
+                      {stats.late3Days?.count}
+                    </span>
                   </div>
-                )}
-                {stats.terlambatLaporLoading ? (
-                  <div className="h-4 w-10 rounded bg-outline-variant/20 animate-pulse mt-1" />
-                ) : (
-                  <div className="text-xs font-semibold text-on-surface-variant/80 mt-0.5 tabular-nums">
-                    {stats.lateMoreDays?.pct}
+
+                  {/* Segment 2: 4-7 Hari (Deep Indigo) */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 hover:bg-indigo-500/15 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#6366F1] shadow-sm flex-shrink-0 border border-white" />
+                      <span className="text-xs font-bold text-on-surface">4-7 HARI</span>
+                    </div>
+                    <span className="text-sm font-extrabold text-on-surface tabular-nums">
+                      {stats.late7Days?.count}
+                    </span>
                   </div>
-                )}
+
+                  {/* Segment 3: >7 Hari (Crimson Rose) */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/15 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3.5 h-3.5 rounded-full bg-[#E11D48] shadow-sm flex-shrink-0 border border-white" />
+                      <span className="text-xs font-bold text-on-surface">&gt;7 HARI</span>
+                    </div>
+                    <span className="text-sm font-extrabold text-on-surface tabular-nums">
+                      {stats.lateMoreDays?.count}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Link */}
-          <div className="mt-4 pt-3 border-t border-outline-variant/30 flex justify-end">
+          <div className="mt-3 pt-3 border-t border-outline-variant/30 flex justify-end">
             <span className="text-xs font-semibold text-primary hover:text-primary/80 flex items-center gap-1 cursor-pointer group">
               View Detailed Breakdown
               <span className="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">
