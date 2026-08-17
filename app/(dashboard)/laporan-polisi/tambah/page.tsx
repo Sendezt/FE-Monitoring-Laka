@@ -21,6 +21,7 @@ export default function AddReportPage() {
   const { success, error: showError } = useToast()
 
   // Master data
+  const [polres, setPolres] = useState<MasterItem[]>([])
   const [kecamatan, setKecamatan] = useState<MasterItem[]>([])
   const [kelurahan, setKelurahan] = useState<MasterItem[]>([])
   const [jenisKendaraan, setJenisKendaraan] = useState<MasterItem[]>([])
@@ -37,6 +38,7 @@ export default function AddReportPage() {
 
   // Form state
   const [noLp, setNoLp] = useState('')
+  const [polresId, setPolresId] = useState('')
   const [tanggalLaka, setTanggalLaka] = useState(new Date().toISOString().slice(0, 10))
   const [tanggalLp, setTanggalLp] = useState(new Date().toISOString().slice(0, 10))
   const [kecamatanId, setKecamatanId] = useState('')
@@ -66,7 +68,7 @@ export default function AddReportPage() {
   useEffect(() => {
     const wilayahId = user?.wilayah_id
     Promise.all([
-      masterApi.kecamatan.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
+      wilayahId ? masterApi.polres.listByWilayah(wilayahId, { page: 1, limit: 100 }) : Promise.resolve({ data: { data: [] } }),
       masterApi.jenisKendaraan.list({ page: 1, limit: 500 }),
       masterApi.profesi.list({ page: 1, limit: 500 }),
       masterApi.cidera.list({ page: 1, limit: 500 }),
@@ -77,8 +79,8 @@ export default function AddReportPage() {
       masterApi.jenisJaminan.list({ page: 1, limit: 500 }),
       masterApi.keterjaminan.list({ page: 1, limit: 500 }),
       masterApi.rumahsakit.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
-    ]).then(([kec, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs]) => {
-      setKecamatan(kec.data.data || [])
+    ]).then(([pol, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs]) => {
+      setPolres(pol.data.data || [])
       setJenisKendaraan(jk.data.data || [])
       setProfesi(prof.data.data || [])
       setCidera(cid.data.data || [])
@@ -92,6 +94,17 @@ export default function AddReportPage() {
     }).catch(() => showError('Gagal memuat data referensi. Cek koneksi server.')).finally(() => setMasterLoading(false))
   }, [user?.wilayah_id, showError])
 
+  // Fetch kecamatan when polres changes
+  useEffect(() => {
+    if (!polresId) { setKecamatan([]); setKecamatanId(''); setKelurahan([]); setKelurahanId(''); return }
+    masterApi.kecamatan.listByPolres(Number(polresId), { page: 1, limit: 100 }).then((res) => {
+      setKecamatan(res.data.data || [])
+      setKecamatanId('')
+      setKelurahan([])
+      setKelurahanId('')
+    })
+  }, [polresId])
+
   // Fetch kelurahan when kecamatan changes
   useEffect(() => {
     if (!kecamatanId) { setKelurahan([]); setKelurahanId(''); return }
@@ -103,6 +116,7 @@ export default function AddReportPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!polresId) { showError('Pilih polres terlebih dahulu.'); return }
     if (!kecamatanId || !kelurahanId) { showError('Pilih kecamatan dan kelurahan terlebih dahulu.'); return }
     if (vehicles.some((v) => !v.nopol || !v.jenis_kendaraan_id)) { showError('Lengkapi data semua kendaraan.'); return }
     if (victims.some((v) => !v.nama || !v.usia)) { showError('Lengkapi nama dan usia semua korban.'); return }
@@ -110,6 +124,7 @@ export default function AddReportPage() {
     setIsSaving(true)
     const payload: CreateLaporanPayload = {
       no_lp: noLp,
+      polres_id: Number(polresId),
       tanggal_laka: tanggalLaka,
       hari_kejadian: weekday,
       tanggal_lp: tanggalLp,
@@ -197,9 +212,15 @@ export default function AddReportPage() {
         <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
           <SectionHeader icon={MapPin} title="Lokasi Kejadian" desc="Wilayah dan tempat kejadian perkara" />
           <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Polres" required>
+              <select required value={polresId} onChange={(e) => setPolresId(e.target.value)} className={selectClass}>
+                <option value="">Pilih polres</option>
+                {polres.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
+              </select>
+            </Field>
             <Field label="Kecamatan" required>
-              <select required value={kecamatanId} onChange={(e) => setKecamatanId(e.target.value)} className={selectClass}>
-                <option value="">Pilih kecamatan</option>
+              <select required value={kecamatanId} onChange={(e) => setKecamatanId(e.target.value)} disabled={!polresId} className={`${selectClass} disabled:cursor-not-allowed disabled:opacity-50`}>
+                <option value="">{polresId ? 'Pilih kecamatan' : 'Pilih polres dahulu'}</option>
                 {kecamatan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
               </select>
             </Field>

@@ -119,7 +119,7 @@ export default function DetailLaporanPage({ params }: { params: Promise<{ id: st
                   </span>
                   <div className="text-sm">
                     <p className="font-semibold font-mono">{k.nopol}</p>
-                    <p className="text-xs text-muted-foreground">{k.jenis_kendaraan?.nama ?? `Jenis #${k.jenis_kendaraan_id}`}</p>
+                    <p className="text-xs text-muted-foreground">{k.jenisKendaraan?.nama ?? `Jenis #${k.jenis_kendaraan_id}`}</p>
                   </div>
                 </div>
               ))}

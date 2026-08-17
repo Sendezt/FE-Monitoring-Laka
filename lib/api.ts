@@ -70,7 +70,7 @@ export interface Kendaraan {
   jenis_kendaraan_id: number
   nopol: string
   masa_laku_sw?: string
-  jenis_kendaraan?: { id: number; nama: string }
+  jenisKendaraan?: { id: number; nama: string }
 }
 
 export interface Korban {
@@ -88,6 +88,7 @@ export interface Korban {
 export interface LaporanPolisi {
   id: number
   no_lp: string
+  polres_id?: number
   tanggal_laka: string
   hari_kejadian: string
   tanggal_lp: string
@@ -107,6 +108,7 @@ export interface LaporanPolisi {
   keterangan?: string
   kendaraan?: Kendaraan[]
   korban?: Korban[]
+  polres?: { id: number; nama: string }
   kecamatan?: { id: number; nama: string }
   kelurahan?: { id: number; nama: string }
   created_at?: string
@@ -114,6 +116,7 @@ export interface LaporanPolisi {
 
 export interface CreateLaporanPayload {
   no_lp: string
+  polres_id: number
   tanggal_laka: string
   hari_kejadian: string
   tanggal_lp: string
@@ -207,8 +210,16 @@ const masterCrud = (baseUrl: string) => ({
 
 export const masterApi = {
   wilayah:        masterCrud('/api/wilayah'),
-  polres:         masterCrud('/api/polres'),
-  kecamatan:      masterCrud('/api/kecamatan'),
+  polres: {
+    ...masterCrud('/api/polres'),
+    listByWilayah: (wilayahId: number, params?: Record<string, unknown>) =>
+      api.get<ApiResponse<MasterItem[]>>(`/api/polres/wilayah/${wilayahId}`, { params: withPaging(params ?? {}) }),
+  },
+  kecamatan: {
+    ...masterCrud('/api/kecamatan'),
+    listByPolres: (polresId: number, params?: Record<string, unknown>) =>
+      api.get<ApiResponse<MasterItem[]>>(`/api/kecamatan/polres/${polresId}`, { params: withPaging(params ?? {}) }),
+  },
   kelurahan:      (kecamatan_id?: number, params?: Record<string, unknown>) =>
     api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', { params: withPaging({
       ...(kecamatan_id ? { kecamatan_id } : {}),
