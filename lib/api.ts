@@ -1,0 +1,204 @@
+import axios from 'axios'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// Request interceptor: inject Bearer token
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
+
+// Response interceptor: handle 401 → clear & redirect
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ─── Typed helpers ────────────────────────────────────────────────────────────
+
+export interface ApiResponse<T = unknown> {
+  success: boolean
+  message: string
+  data: T
+}
+
+export interface PaginatedResponse<T = unknown> {
+  success: boolean
+  message: string
+  data: T[]
+  meta: { total: number; page: number; limit: number; total_pages: number }
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  username: string
+  nama_lengkap: string
+  role: 'admin' | 'user'
+  wilayah_id: number
+  wilayah: { id: number; nama: string }
+}
+
+export const authApi = {
+  login: (username: string, password: string) =>
+    api.post<ApiResponse<{ token: string; user: AuthUser }>>('/api/auth/login', { username, password }),
+}
+
+// ─── Laporan Polisi ───────────────────────────────────────────────────────────
+
+export interface Kendaraan {
+  id?: number
+  peran: 'korban' | 'penjamin'
+  jenis_kendaraan_id: number
+  nopol: string
+  masa_laku_sw?: string
+  jenis_kendaraan?: { id: number; nama: string }
+}
+
+export interface Korban {
+  id?: number
+  nama: string
+  usia: number
+  profesi_id?: number
+  cidera_id?: number
+  kendaraan_index?: number // for create all-in-one
+  kendaraan_id?: number    // for GET response
+  profesi?: { id: number; nama: string }
+  cidera?: { id: number; nama: string }
+}
+
+export interface LaporanPolisi {
+  id: number
+  no_lp: string
+  tanggal_laka: string
+  hari_kejadian: string
+  tanggal_lp: string
+  telat_lp: number
+  kecamatan_id: number
+  kelurahan_id: number
+  lokasi_laka: string
+  rumah_sakit_id?: number
+  rumah_sakit_wilayah?: string
+  laka_tunggal: boolean
+  tindak_lanjut_id?: number
+  jenis_jaminan_id?: number
+  keterjaminan_id?: number
+  kasus_tabrak_kecelakaan_id?: number
+  faktor_penyebab_laka_id?: number
+  sifat_laka_id?: number
+  keterangan?: string
+  kendaraan?: Kendaraan[]
+  korban?: Korban[]
+  kecamatan?: { id: number; nama: string }
+  kelurahan?: { id: number; nama: string }
+  created_at?: string
+}
+
+export interface CreateLaporanPayload {
+  no_lp: string
+  tanggal_laka: string
+  hari_kejadian: string
+  tanggal_lp: string
+  telat_lp: number
+  kecamatan_id: number
+  kelurahan_id: number
+  lokasi_laka: string
+  rumah_sakit_id?: number | null
+  rumah_sakit_wilayah?: string | null
+  laka_tunggal: boolean
+  tindak_lanjut_id?: number | null
+  jenis_jaminan_id?: number | null
+  keterjaminan_id?: number | null
+  kasus_tabrak_kecelakaan_id?: number | null
+  faktor_penyebab_laka_id?: number | null
+  sifat_laka_id?: number | null
+  keterangan?: string | null
+  kendaraan: Omit<Kendaraan, 'id' | 'jenis_kendaraan'>[]
+  korban: Omit<Korban, 'id' | 'kendaraan_id' | 'profesi' | 'cidera'>[]
+}
+
+export const laporanApi = {
+  list: () => api.get<ApiResponse<LaporanPolisi[]>>('/api/laporan-polisi'),
+  get: (id: number) => api.get<ApiResponse<LaporanPolisi>>(`/api/laporan-polisi/${id}`),
+  create: (data: CreateLaporanPayload) => api.post<ApiResponse<LaporanPolisi>>('/api/laporan-polisi', data),
+  update: (id: number, data: Partial<CreateLaporanPayload>) => api.put<ApiResponse<LaporanPolisi>>(`/api/laporan-polisi/${id}`, data),
+  delete: (id: number) => api.delete<ApiResponse<null>>(`/api/laporan-polisi/${id}`),
+  statistikKomparasi: (p: { start1: string; end1: string; start2: string; end2: string }) =>
+    api.get<ApiResponse<unknown>>('/api/laporan-polisi/statistik/komparasi', { params: p }),
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export interface User {
+  id: number
+  username: string
+  nama_lengkap: string
+  role: 'admin' | 'user'
+  wilayah_id: number
+  wilayah?: { id: number; nama: string }
+  is_active: boolean
+}
+
+export const usersApi = {
+  list: () => api.get<ApiResponse<User[]>>('/api/users'),
+  get: (id: number) => api.get<ApiResponse<User>>(`/api/users/${id}`),
+  create: (data: { username: string; nama_lengkap: string; password: string; role: string; wilayah_id: number }) =>
+    api.post<ApiResponse<User>>('/api/users', data),
+}
+
+// ─── Activity Log ─────────────────────────────────────────────────────────────
+
+export interface ActivityLog {
+  id: number
+  aksi: 'CREATE' | 'UPDATE' | 'DELETE'
+  tabel: string
+  record_id: number
+  waktu: string
+  user: { id: number; username: string; nama_lengkap: string }
+}
+
+export const activityLogApi = {
+  list: (params?: { user_id?: number; tabel?: string; from?: string; to?: string; page?: number; limit?: number }) =>
+    api.get<PaginatedResponse<ActivityLog>>('/api/activity-log', { params }),
+}
+
+// ─── Master Data ──────────────────────────────────────────────────────────────
+
+export interface MasterItem { id: number; nama: string }
+
+const masterGet = (url: string) => () => api.get<ApiResponse<MasterItem[]>>(url)
+
+export const masterApi = {
+  wilayah:        masterGet('/api/wilayah'),
+  kecamatan:      masterGet('/api/kecamatan'),
+  kelurahan:      (kecamatan_id?: number) =>
+    api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', { params: kecamatan_id ? { kecamatan_id } : {} }),
+  rumahsakit:     masterGet('/api/rumahsakit'),
+  profesi:        masterGet('/api/profesi'),
+  tindakLanjut:   masterGet('/api/tindak-lanjut'),
+  cidera:         masterGet('/api/cidera'),
+  keterjaminan:   masterGet('/api/keterjaminan'),
+  sifatLaka:      masterGet('/api/sifat-laka'),
+  jenisKendaraan: masterGet('/api/jenis-kendaraan'),
+  kasusTabrak:    masterGet('/api/kasus-tabrak-kecelakaan'),
+  faktorPenyebab: masterGet('/api/faktor-penyebab-laka'),
+  jenisJaminan:   masterGet('/api/jenis-jaminan'),
+}
