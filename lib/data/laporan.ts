@@ -1,5 +1,1 @@
-import type { RecentReport } from '@/lib/types/laporan'
-
-export const monthlyReports = [{ month: 'Jan', laporan: 42 }, { month: 'Feb', laporan: 56 }, { month: 'Mar', laporan: 48 }, { month: 'Apr', laporan: 71 }, { month: 'Mei', laporan: 63 }, { month: 'Jun', laporan: 84 }, { month: 'Jul', laporan: 78 }]
-export const accidentCategories = [{ name: 'Kecelakaan Tunggal', value: 39 }, { name: 'Tabrak Depan', value: 28 }, { name: 'Tabrak Samping', value: 21 }, { name: 'Lainnya', value: 12 }]
-export const recentReports: RecentReport[] = [{ id: 'LP/0807/2024/00124', place: 'Jl. Raya Darmo, Surabaya', date: '07 Jul 2024', status: 'Selesai', tone: 'success' }, { id: 'LP/0807/2024/00123', place: 'Jl. Ahmad Yani KM 12', date: '06 Jul 2024', status: 'Dalam Proses', tone: 'warning' }, { id: 'LP/0807/2024/00122', place: 'Simpang Lima Gumul', date: '05 Jul 2024', status: 'Selesai', tone: 'success' }, { id: 'LP/0807/2024/00121', place: 'Jl. Diponegoro No. 18', date: '04 Jul 2024', status: 'Draft', tone: 'muted' }]
+// Dummy data file - removed as API integration is complete

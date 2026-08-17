@@ -20,7 +20,7 @@ export function Topbar({ title, eyebrow, onMenu }: { title: string; eyebrow: str
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur md:px-8">
       <div className="flex items-center gap-3">
-        <button className="md:hidden text-muted-foreground" onClick={onMenu} aria-label="Buka menu">
+        <button className="text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer" onClick={onMenu} aria-label="Toggle menu">
           <Menu size={20} />
         </button>
         {/* Breadcrumb */}

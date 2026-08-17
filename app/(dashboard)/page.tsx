@@ -80,8 +80,6 @@ export default function DashboardPage() {
   return (
     <SILakaShell>
       <PageHeader
-        title="Dashboard"
-        description="Ringkasan data kecelakaan lalu lintas wilayah kerja Anda."
         action={
           <Button href="/laporan-polisi/tambah">
             <FilePlus2 size={17} /> Buat Laporan Baru

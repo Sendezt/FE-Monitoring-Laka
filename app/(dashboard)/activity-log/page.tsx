@@ -11,6 +11,7 @@ const AKSI_COLORS: Record<string, string> = {
   CREATE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   UPDATE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   DELETE: 'bg-destructive/10 text-destructive',
+  LOGIN: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
 }
 
 function formatWaktu(s: string) {
@@ -43,7 +44,6 @@ export default function ActivityLogPage() {
       <SILakaShell title="Log Aktivitas" eyebrow="Administrasi">
         <PageHeader
           title="Log Aktivitas"
-          description="Audit trail semua operasi yang dilakukan oleh pengguna."
         />
 
         {/* Filters */}
@@ -104,8 +104,7 @@ export default function ActivityLogPage() {
                   <tr className="bg-muted/30 text-xs text-muted-foreground border-b">
                     <th className="px-5 py-3 text-left font-semibold">Waktu</th>
                     <th className="px-5 py-3 text-left font-semibold">Aksi</th>
-                    <th className="px-5 py-3 text-left font-semibold">Tabel</th>
-                    <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Record ID</th>
+                    <th className="px-5 py-3 text-left font-semibold">Deskripsi</th>
                     <th className="px-5 py-3 text-left font-semibold">Oleh</th>
                   </tr>
                 </thead>
@@ -118,11 +117,12 @@ export default function ActivityLogPage() {
                           {log.aksi}
                         </span>
                       </td>
-                      <td className="px-5 py-3 font-mono text-xs">{log.tabel}</td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground hidden sm:table-cell">#{log.record_id}</td>
+                      <td className="px-5 py-3 text-xs text-foreground font-medium max-w-sm">
+                        {log.deskripsi || `${log.aksi === 'CREATE' ? 'Membuat' : log.aksi === 'UPDATE' ? 'Memperbarui' : log.aksi === 'DELETE' ? 'Menghapus' : log.aksi} data ${log.tabel.replace(/_/g, ' ')} #${log.record_id}`}
+                      </td>
                       <td className="px-5 py-3 text-xs">
-                        <p className="font-medium">{log.user?.nama_lengkap}</p>
-                        <p className="text-muted-foreground">@{log.user?.username}</p>
+                        <p className="font-semibold">{log.user?.nama_lengkap || 'System'}</p>
+                        <p className="text-muted-foreground">@{log.user?.username || 'system'}</p>
                       </td>
                     </tr>
                   ))}

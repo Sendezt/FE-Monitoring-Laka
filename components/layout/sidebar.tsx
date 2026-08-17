@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ClipboardList, FileBarChart, LayoutDashboard, LogOut, Settings, Users, Activity, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { ClipboardList, FileBarChart, LayoutDashboard, LogOut, Settings, Users, Activity, X, ChevronDown, ChevronRight, Database } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth-store'
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -32,7 +32,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     : 'U'
 
   return (
-    <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground shadow-[1px_0_0_var(--sidebar-border)] transition-transform md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+    <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-sidebar text-sidebar-foreground shadow-[1px_0_0_var(--sidebar-border)] transition-transform duration-300 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-5">
         <div className="flex flex-col items-center">
           <span className="text-base font-black tracking-tight text-sidebar-foreground leading-none">DATA LAKA</span>
@@ -51,7 +51,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/'
               ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
               : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-            }`}
+              }`}
           >
             <LayoutDashboard size={18} />
             Dashboard
@@ -64,7 +64,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               className={`flex items-center justify-between rounded-md px-3 py-2.5 text-sm font-medium transition-colors text-left ${isLaporanPath
                 ? 'bg-sidebar-accent/30 text-sidebar-accent-foreground font-medium'
                 : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-              }`}
+                }`}
             >
               <span className="flex items-center gap-3">
                 <ClipboardList size={18} />
@@ -82,7 +82,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${pathname === '/laporan-polisi'
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-                  }`}
+                    }`}
                 >
                   Daftar Laporan
                 </Link>
@@ -92,7 +92,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                   className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${pathname === '/laporan-polisi/tambah'
                     ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                     : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-                  }`}
+                    }`}
                 >
                   Buat Laporan Baru
                 </Link>
@@ -107,7 +107,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/statistik'
               ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
               : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-            }`}
+              }`}
           >
             <FileBarChart size={18} />
             Statistik
@@ -120,12 +120,23 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             <p className="px-3 pb-3 pt-8 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/45">Administrasi</p>
             <div className="flex flex-col gap-1">
               <Link
+                href="/master-data"
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/master-data'
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
+                  }`}
+              >
+                <Database size={18} />
+                Data Master
+              </Link>
+              <Link
                 href="/users"
                 onClick={onClose}
                 className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/users'
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-                }`}
+                  }`}
               >
                 <Users size={18} />
                 Pengguna
@@ -136,21 +147,10 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                 className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/activity-log'
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-                }`}
+                  }`}
               >
                 <Activity size={18} />
                 Log Aktivitas
-              </Link>
-              <Link
-                href="/profile"
-                onClick={onClose}
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${pathname === '/profile'
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground'
-                }`}
-              >
-                <Settings size={18} />
-                Profil Saya
               </Link>
             </div>
           </>

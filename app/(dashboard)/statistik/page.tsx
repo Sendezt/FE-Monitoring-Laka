@@ -18,15 +18,15 @@ export default function StatistikPage() {
     const m = date.getMonth()
     const first = new Date(y, m, 1)
     const last = new Date(y, m + 1, 0)
-    return { 
-      start: first.toISOString().slice(0,10), 
-      end: last.toISOString().slice(0,10) 
+    return {
+      start: first.toISOString().slice(0, 10),
+      end: last.toISOString().slice(0, 10)
     }
   }
 
   const now = new Date()
   const thisMonth = getFirstLastDay(now)
-  
+
   const lastMonthDate = new Date(now)
   lastMonthDate.setMonth(now.getMonth() - 1)
   const lastMonth = getFirstLastDay(lastMonthDate)
@@ -52,11 +52,6 @@ export default function StatistikPage() {
 
   return (
     <SILakaShell title="Statistik" eyebrow="Laporan Polisi">
-      <PageHeader
-        title="Statistik & Komparasi"
-        description="Bandingkan data kecelakaan lalu lintas antara 2 periode waktu."
-      />
-
       <div className="mb-6 rounded-xl border bg-card p-5 shadow-xs">
         <h3 className="mb-4 font-semibold text-sm">Pilih Periode Komparasi</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 items-end">
@@ -91,24 +86,30 @@ export default function StatistikPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <StatCard
               label="Laporan Periode 1"
-              value={String(data.periode1?.jumlah_laka ?? data.periode1?.laka ?? 0)}
-              note={`${start1} s/d ${end1}`}
+              value={String(data.periode_1?.total_laka ?? 0)}
+              note={data.periode_1?.rentang ?? `${start1} s/d ${end1}`}
               icon={ClipboardList}
             />
             <StatCard
               label="Laporan Periode 2"
-              value={String(data.periode2?.jumlah_laka ?? data.periode2?.laka ?? 0)}
-              note={`${start2} s/d ${end2}`}
+              value={String(data.periode_2?.total_laka ?? 0)}
+              note={data.periode_2?.rentang ?? `${start2} s/d ${end2}`}
               icon={ClipboardList}
             />
             <StatCard
               label="Selisih Kejadian"
-              value={String(Math.abs((data.periode1?.jumlah_laka ?? 0) - (data.periode2?.jumlah_laka ?? 0)))}
-              note={(data.periode1?.jumlah_laka ?? 0) > (data.periode2?.jumlah_laka ?? 0) ? 'Periode 1 lebih tinggi' : 'Periode 2 lebih tinggi'}
-              tone={(data.periode1?.jumlah_laka ?? 0) > (data.periode2?.jumlah_laka ?? 0) ? 'danger' : 'success'}
+              value={String(Math.abs(data.komparasi?.selisih_laka ?? 0))}
+              note={(data.komparasi?.selisih_laka ?? 0) < 0 ? 'Turun dari periode 1' : (data.komparasi?.selisih_laka ?? 0) > 0 ? 'Naik dari periode 1' : 'Tidak ada perubahan'}
+              tone={(data.komparasi?.selisih_laka ?? 0) < 0 ? 'success' : (data.komparasi?.selisih_laka ?? 0) > 0 ? 'danger' : 'default'}
               icon={Activity}
             />
           </div>
+
+          {data.komparasi?.keterangan && (
+            <div className="mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              {data.komparasi.keterangan}
+            </div>
+          )}
 
           <section className="mt-6 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
             <h3 className="font-semibold text-foreground mb-4">Grafik Komparasi</h3>
@@ -116,20 +117,20 @@ export default function StatistikPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={[
-                    { 
-                      name: 'Jumlah Laka', 
-                      periode1: data.periode1?.jumlah_laka ?? 0, 
-                      periode2: data.periode2?.jumlah_laka ?? 0 
+                    {
+                      name: 'Jumlah Laka',
+                      periode1: data.periode_1?.total_laka ?? 0,
+                      periode2: data.periode_2?.total_laka ?? 0
                     },
-                    { 
-                      name: 'Laka Tunggal', 
-                      periode1: data.periode1?.laka_tunggal ?? 0, 
-                      periode2: data.periode2?.laka_tunggal ?? 0 
+                    {
+                      name: 'Laka Tunggal',
+                      periode1: data.periode_1?.laka_tunggal ?? 0,
+                      periode2: data.periode_2?.laka_tunggal ?? 0
                     },
-                    { 
-                      name: 'Korban Jiwa/Luka', 
-                      periode1: data.periode1?.korban ?? 0, 
-                      periode2: data.periode2?.korban ?? 0 
+                    {
+                      name: 'Total Korban',
+                      periode1: data.periode_1?.total_korban ?? 0,
+                      periode2: data.periode_2?.total_korban ?? 0
                     }
                   ]}
                   margin={{ top: 20, right: 30, left: 20, bottom: 5 }}

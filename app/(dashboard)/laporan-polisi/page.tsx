@@ -53,12 +53,6 @@ export default function LaporanPolisiPage() {
 
   return (
     <SILakaShell title="Daftar Laporan" eyebrow="Laporan Polisi">
-      <PageHeader
-        title="Daftar Laporan Polisi"
-        description="Semua laporan kecelakaan lalu lintas yang tercatat di wilayah Anda."
-        action={<Button href="/laporan-polisi/tambah"><FilePlus2 size={16} /> Buat Laporan Baru</Button>}
-      />
-
       {/* Search */}
       <div className="mb-5 flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">

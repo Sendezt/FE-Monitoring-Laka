@@ -158,9 +158,9 @@ export interface User {
 }
 
 export const usersApi = {
-  list: () => api.get<ApiResponse<User[]>>('/api/users'),
+  list: () => api.get<ApiResponse<User[]>>('/api/users', { params: { page: 1, limit: 100 } }),
   get: (id: number) => api.get<ApiResponse<User>>(`/api/users/${id}`),
-  create: (data: { username: string; nama_lengkap: string; password: string; role: string; wilayah_id: number }) =>
+  create: (data: { username: string; nama_lengkap: string; password: string; role: string; wilayah_id?: number | null }) =>
     api.post<ApiResponse<User>>('/api/users', data),
 }
 
@@ -168,10 +168,11 @@ export const usersApi = {
 
 export interface ActivityLog {
   id: number
-  aksi: 'CREATE' | 'UPDATE' | 'DELETE'
+  aksi: string
   tabel: string
   record_id: number
   waktu: string
+  deskripsi?: string
   user: { id: number; username: string; nama_lengkap: string }
 }
 
@@ -186,19 +187,42 @@ export interface MasterItem { id: number; nama: string }
 
 const masterGet = (url: string) => () => api.get<ApiResponse<MasterItem[]>>(url)
 
+const withPaging = (params: Record<string, unknown> = {}) => ({
+  page: 1,
+  limit: 500,
+  ...params,
+})
+
+// Create generic CRUD factory for master data
+const masterCrud = (baseUrl: string) => ({
+  list: (params?: number | Record<string, unknown>) => {
+    const normalized = typeof params === 'number' ? { wilayah_id: params } : (params ?? {})
+    return api.get<ApiResponse<MasterItem[]>>(baseUrl, { params: withPaging(normalized as Record<string, unknown>) })
+  },
+  get: (id: number) => api.get<ApiResponse<MasterItem>>(`${baseUrl}/${id}`),
+  create: (data: { nama: string }) => api.post<ApiResponse<MasterItem>>(baseUrl, data),
+  update: (id: number, data: { nama: string }) => api.put<ApiResponse<MasterItem>>(`${baseUrl}/${id}`, data),
+  delete: (id: number) => api.delete<ApiResponse<null>>(`${baseUrl}/${id}`),
+})
+
 export const masterApi = {
-  wilayah:        masterGet('/api/wilayah'),
-  kecamatan:      masterGet('/api/kecamatan'),
-  kelurahan:      (kecamatan_id?: number) =>
-    api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', { params: kecamatan_id ? { kecamatan_id } : {} }),
-  rumahsakit:     masterGet('/api/rumahsakit'),
-  profesi:        masterGet('/api/profesi'),
-  tindakLanjut:   masterGet('/api/tindak-lanjut'),
-  cidera:         masterGet('/api/cidera'),
-  keterjaminan:   masterGet('/api/keterjaminan'),
-  sifatLaka:      masterGet('/api/sifat-laka'),
-  jenisKendaraan: masterGet('/api/jenis-kendaraan'),
-  kasusTabrak:    masterGet('/api/kasus-tabrak-kecelakaan'),
-  faktorPenyebab: masterGet('/api/faktor-penyebab-laka'),
-  jenisJaminan:   masterGet('/api/jenis-jaminan'),
+  wilayah:        masterCrud('/api/wilayah'),
+  polres:         masterCrud('/api/polres'),
+  kecamatan:      masterCrud('/api/kecamatan'),
+  kelurahan:      (kecamatan_id?: number, params?: Record<string, unknown>) =>
+    api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', { params: withPaging({
+      ...(kecamatan_id ? { kecamatan_id } : {}),
+      ...(params ?? {}),
+    }) }),
+  kelurahanCrud:  masterCrud('/api/kelurahan'),
+  rumahsakit:     masterCrud('/api/rumahsakit'),
+  profesi:        masterCrud('/api/profesi'),
+  tindakLanjut:   masterCrud('/api/tindak-lanjut'),
+  cidera:         masterCrud('/api/cidera'),
+  keterjaminan:   masterCrud('/api/keterjaminan'),
+  sifatLaka:      masterCrud('/api/sifat-laka'),
+  jenisKendaraan: masterCrud('/api/jenis-kendaraan'),
+  kasusTabrak:    masterCrud('/api/kasus-tabrak-kecelakaan'),
+  faktorPenyebab: masterCrud('/api/faktor-penyebab-laka'),
+  jenisJaminan:   masterCrud('/api/jenis-jaminan'),
 }

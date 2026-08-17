@@ -5,15 +5,17 @@ import type { LucideIcon } from 'lucide-react'
 
 export const SILakaShell = AppShell
 
-export function PageHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+export function PageHeader({ title, description, action }: { title?: string; description?: string; action?: React.ReactNode }) {
+  const hasHeading = title || description;
   return (
-    <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end animate-fade-in">
-      <div>
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary/80">SI Laka</p>
-        <h2 className="text-2xl font-bold tracking-tight md:text-3xl text-foreground">{title}</h2>
-        {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
-      </div>
-      <div className="flex items-center gap-3">
+    <div className={`mb-7 flex flex-col gap-4 sm:flex-row sm:items-center animate-fade-in ${hasHeading ? 'justify-between' : 'justify-end'}`}>
+      {hasHeading && (
+        <div>
+          {title && <h2 className="text-2xl font-bold tracking-tight md:text-3xl text-foreground">{title}</h2>}
+          {description && <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{description}</p>}
+        </div>
+      )}
+      <div className="flex items-center gap-3 self-end sm:self-auto">
         {action}
       </div>
     </div>

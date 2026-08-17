@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save } from 'lucide-react'
 import { Field, inputClass, selectClass, SILakaShell } from '@/components/si-laka-shell'
 import { laporanApi, masterApi, type MasterItem, type CreateLaporanPayload } from '@/lib/api'
+import { useAuthStore } from '@/lib/auth-store'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 
@@ -16,6 +17,7 @@ const emptyVictim = (): VictimForm => ({ nama: '', usia: '', profesi_id: '', cid
 
 export default function AddReportPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const { success, error: showError } = useToast()
 
   // Master data
@@ -60,20 +62,21 @@ export default function AddReportPage() {
     return Math.max(0, Math.floor((d2.getTime() - d1.getTime()) / 86400000))
   }, [tanggalLaka, tanggalLp])
 
-  // Fetch all master data once
+  // Fetch all master data once (filtered by user's wilayah)
   useEffect(() => {
+    const wilayahId = user?.wilayah_id
     Promise.all([
-      masterApi.kecamatan(),
-      masterApi.jenisKendaraan(),
-      masterApi.profesi(),
-      masterApi.cidera(),
-      masterApi.sifatLaka(),
-      masterApi.faktorPenyebab(),
-      masterApi.kasusTabrak(),
-      masterApi.tindakLanjut(),
-      masterApi.jenisJaminan(),
-      masterApi.keterjaminan(),
-      masterApi.rumahsakit(),
+      masterApi.kecamatan.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
+      masterApi.jenisKendaraan.list({ page: 1, limit: 500 }),
+      masterApi.profesi.list({ page: 1, limit: 500 }),
+      masterApi.cidera.list({ page: 1, limit: 500 }),
+      masterApi.sifatLaka.list({ page: 1, limit: 500 }),
+      masterApi.faktorPenyebab.list({ page: 1, limit: 500 }),
+      masterApi.kasusTabrak.list({ page: 1, limit: 500 }),
+      masterApi.tindakLanjut.list({ page: 1, limit: 500 }),
+      masterApi.jenisJaminan.list({ page: 1, limit: 500 }),
+      masterApi.keterjaminan.list({ page: 1, limit: 500 }),
+      masterApi.rumahsakit.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
     ]).then(([kec, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs]) => {
       setKecamatan(kec.data.data || [])
       setJenisKendaraan(jk.data.data || [])
@@ -87,7 +90,7 @@ export default function AddReportPage() {
       setKeterjaminan(ket.data.data || [])
       setRumahSakit(rs.data.data || [])
     }).catch(() => showError('Gagal memuat data referensi. Cek koneksi server.')).finally(() => setMasterLoading(false))
-  }, [])
+  }, [user?.wilayah_id, showError])
 
   // Fetch kelurahan when kecamatan changes
   useEffect(() => {

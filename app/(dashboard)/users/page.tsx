@@ -26,14 +26,14 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers()
-    masterApi.wilayah().then((res) => setWilayah(res.data.data || []))
+    masterApi.wilayah.list().then((res) => setWilayah(res.data.data || []))
   }, [])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await usersApi.create({ ...form, wilayah_id: Number(form.wilayah_id) })
+      await usersApi.create({ ...form, wilayah_id: form.wilayah_id ? Number(form.wilayah_id) : null })
       success('Pengguna berhasil ditambahkan.')
       setShowForm(false)
       setForm({ username: '', nama_lengkap: '', password: '', role: 'user', wilayah_id: '' })
@@ -51,8 +51,6 @@ export default function UsersPage() {
     <AuthGuard adminOnly>
       <SILakaShell title="Pengguna" eyebrow="Administrasi">
         <PageHeader
-          title="Manajemen Pengguna"
-          description="Kelola akun operator dan admin sistem."
           action={<Button onClick={() => setShowForm(!showForm)}><Plus size={16} /> Tambah Pengguna</Button>}
         />
 
@@ -75,18 +73,20 @@ export default function UsersPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/80">Role</label>
-                <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, wilayah_id: e.target.value === 'admin' ? '' : form.wilayah_id })}>
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <label className="text-xs font-semibold text-foreground/80">Wilayah</label>
-                <select required className={inputCls} value={form.wilayah_id} onChange={(e) => setForm({ ...form, wilayah_id: e.target.value })}>
-                  <option value="">Pilih wilayah</option>
-                  {wilayah.map((w) => <option key={w.id} value={w.id}>{w.nama}</option>)}
-                </select>
-              </div>
+              {form.role === 'user' && (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label className="text-xs font-semibold text-foreground/80">Wilayah</label>
+                  <select required className={inputCls} value={form.wilayah_id} onChange={(e) => setForm({ ...form, wilayah_id: e.target.value })}>
+                    <option value="">Pilih wilayah</option>
+                    {wilayah.map((w) => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="sm:col-span-2 flex gap-2 justify-end">
                 <button type="button" onClick={() => setShowForm(false)} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted cursor-pointer">Batal</button>
                 <button type="submit" disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 cursor-pointer flex items-center gap-2">

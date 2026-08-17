@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save, ArrowLeft } from 'lucide-react'
 import { Field, inputClass, selectClass, SILakaShell } from '@/components/si-laka-shell'
 import { laporanApi, masterApi, type MasterItem, type CreateLaporanPayload } from '@/lib/api'
+import { useAuthStore } from '@/lib/auth-store'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 import Link from 'next/link'
@@ -19,6 +20,7 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
   const router = useRouter()
   const { id } = use(params)
   const reportId = Number(id)
+  const { user } = useAuthStore()
   const { success, error: showError } = useToast()
 
   // Master data
@@ -65,18 +67,19 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
   }, [tanggalLaka, tanggalLp])
 
   useEffect(() => {
+    const wilayahId = user?.wilayah_id
     Promise.all([
-      masterApi.kecamatan(),
-      masterApi.jenisKendaraan(),
-      masterApi.profesi(),
-      masterApi.cidera(),
-      masterApi.sifatLaka(),
-      masterApi.faktorPenyebab(),
-      masterApi.kasusTabrak(),
-      masterApi.tindakLanjut(),
-      masterApi.jenisJaminan(),
-      masterApi.keterjaminan(),
-      masterApi.rumahsakit(),
+      masterApi.kecamatan.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
+      masterApi.jenisKendaraan.list({ page: 1, limit: 500 }),
+      masterApi.profesi.list({ page: 1, limit: 500 }),
+      masterApi.cidera.list({ page: 1, limit: 500 }),
+      masterApi.sifatLaka.list({ page: 1, limit: 500 }),
+      masterApi.faktorPenyebab.list({ page: 1, limit: 500 }),
+      masterApi.kasusTabrak.list({ page: 1, limit: 500 }),
+      masterApi.tindakLanjut.list({ page: 1, limit: 500 }),
+      masterApi.jenisJaminan.list({ page: 1, limit: 500 }),
+      masterApi.keterjaminan.list({ page: 1, limit: 500 }),
+      masterApi.rumahsakit.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
       laporanApi.get(reportId),
     ]).then(([kec, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs, rep]) => {
       setKecamatan(kec.data.data || [])
@@ -118,7 +121,7 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
       setVehicles((data.kendaraan || []).map(v => ({
         id: v.id,
         peran: v.peran,
-        jenis_kendaraan_id: String(v.jenis_kendaraan_id),
+        jenis_kendaraan_id: v.jenis_kendaraan_id ? String(v.jenis_kendaraan_id) : (v.jenis_kendaraan?.id ? String(v.jenis_kendaraan.id) : ''),
         nopol: v.nopol
       })))
       
@@ -126,8 +129,8 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
         id: v.id,
         nama: v.nama,
         usia: String(v.usia),
-        profesi_id: v.profesi_id ? String(v.profesi_id) : '',
-        cidera_id: v.cidera_id ? String(v.cidera_id) : '',
+        profesi_id: v.profesi_id ? String(v.profesi_id) : (v.profesi?.id ? String(v.profesi.id) : ''),
+        cidera_id: v.cidera_id ? String(v.cidera_id) : (v.cidera?.id ? String(v.cidera.id) : ''),
         kendaraan_index: String(v.kendaraan_index || (v.kendaraan_id ? data.kendaraan?.findIndex(k => k.id === v.kendaraan_id) ?? 0 : 0))
       })))
       
@@ -136,7 +139,7 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
 
     }).catch(() => showError('Gagal memuat data. Cek koneksi server.'))
     .finally(() => setLoading(false))
-  }, [reportId, showError])
+  }, [reportId, user?.wilayah_id, showError])
 
   const handleKecamatanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
