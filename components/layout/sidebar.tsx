@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -55,6 +55,12 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     if (isLaporanPath) setLaporanOpen(true)
   }, [pathname, isLaporanPath])
 
+  const handleLinkClick = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      onClose()
+    }
+  }
+
   const initials = user?.nama_lengkap
     ? user.nama_lengkap.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
     : 'U'
@@ -97,7 +103,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             Menu Utama
           </p>
           <div className="flex flex-col gap-0.5">
-            <NavLink href="/" icon={LayoutDashboard} label="Dashboard" active={pathname === '/'} onClick={onClose} />
+            <NavLink href="/" icon={LayoutDashboard} label="Dashboard" active={pathname === '/'} onClick={handleLinkClick} />
 
             {/* Laporan Polisi Accordion */}
             <div>
@@ -128,7 +134,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     icon={List}
                     label="Daftar Laporan"
                     active={pathname === '/laporan-polisi'}
-                    onClick={onClose}
+                    onClick={handleLinkClick}
                     indent
                   />
                   <NavLink
@@ -136,14 +142,14 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     icon={FilePlus}
                     label="Buat Laporan Baru"
                     active={pathname === '/laporan-polisi/tambah'}
-                    onClick={onClose}
+                    onClick={handleLinkClick}
                     indent
                   />
                 </div>
               </div>
             </div>
 
-            <NavLink href="/statistik" icon={FileBarChart} label="Statistik" active={pathname === '/statistik'} onClick={onClose} />
+            <NavLink href="/statistik" icon={FileBarChart} label="Statistik" active={pathname === '/statistik'} onClick={handleLinkClick} />
           </div>
         </div>
 
@@ -154,9 +160,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               Administrasi
             </p>
             <div className="flex flex-col gap-0.5">
-              <NavLink href="/master-data" icon={Database} label="Data Master" active={pathname.startsWith('/master-data')} onClick={onClose} />
-              <NavLink href="/users" icon={Users} label="Pengguna" active={pathname === '/users'} onClick={onClose} />
-              <NavLink href="/activity-log" icon={Activity} label="Log Aktivitas" active={pathname === '/activity-log'} onClick={onClose} />
+              <NavLink href="/master-data" icon={Database} label="Data Master" active={pathname.startsWith('/master-data')} onClick={handleLinkClick} />
+              <NavLink href="/users" icon={Users} label="Pengguna" active={pathname === '/users'} onClick={handleLinkClick} />
+              <NavLink href="/activity-log" icon={Activity} label="Log Aktivitas" active={pathname === '/activity-log'} onClick={handleLinkClick} />
             </div>
           </div>
         )}

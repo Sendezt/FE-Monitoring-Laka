@@ -78,7 +78,7 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
     setShowForm(false)
     setEditingId(null)
     setNama('')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entity])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,7 +227,7 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted/30 text-xs text-muted-foreground border-b">
-                      <th className="px-5 py-3 text-left font-semibold">ID</th>
+                      <th className="px-5 py-3 text-left font-semibold">No</th>
                       <th className="px-5 py-3 text-left font-semibold">Nama</th>
                       <th className="px-5 py-3 text-right font-semibold">Aksi</th>
                     </tr>
@@ -235,7 +235,7 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
                   <tbody>
                     {paginatedItems.map((item, i) => (
                       <tr key={item.id} className={`border-t hover:bg-muted/10 transition-colors ${i % 2 === 1 ? 'bg-muted/5' : ''}`}>
-                        <td className="px-5 py-3 text-xs font-mono text-muted-foreground">{item.id}</td>
+                        <td className="px-5 py-3 text-xs font-mono text-muted-foreground">{(currentPage - 1) * itemsPerPage + i + 1}</td>
                         <td className="px-5 py-3 font-medium text-foreground">{item.nama}</td>
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-1.5">

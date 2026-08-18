@@ -78,6 +78,7 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
     <table className="w-full text-sm">
       <thead>
         <tr className="bg-muted/30 text-xs text-muted-foreground">
+          <th className="px-5 py-3 text-left font-semibold">No</th>
           <th className="px-5 py-3 text-left font-semibold">No. LP</th>
           <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Tanggal</th>
           <th className="px-5 py-3 text-left font-semibold hidden md:table-cell">Lokasi</th>
@@ -88,6 +89,9 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
       <tbody>
         {items.map((l, i) => (
           <tr key={l.id} className={`hover:bg-muted/10 transition-colors border-t ${i % 2 === 1 ? 'bg-muted/5' : ''}`}>
+            <td className="px-5 py-3 text-muted-foreground text-xs">
+              {i + 1}
+            </td>
             <td className="px-5 py-3">
               <Link href={`/laporan-polisi/${l.id}`} className="font-mono text-xs font-semibold text-primary hover:underline">
                 {l.no_lp}
