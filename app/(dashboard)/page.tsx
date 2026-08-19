@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -116,8 +116,7 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
 }
 
 /* ─── Admin Dashboard ─── */
-function AdminDashboard({ laporan }: { laporan: LaporanPolisi[] }) {
-  const total = laporan.length
+function AdminDashboard({ laporan, total }: { laporan: LaporanPolisi[]; total: number }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
@@ -224,8 +223,7 @@ function AdminDashboard({ laporan }: { laporan: LaporanPolisi[] }) {
 }
 
 /* ─── User Dashboard ─── */
-function UserDashboard({ laporan, wilayahNama }: { laporan: LaporanPolisi[]; wilayahNama: string }) {
-  const total = laporan.length
+function UserDashboard({ laporan, wilayahNama, total }: { laporan: LaporanPolisi[]; wilayahNama: string; total: number }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
@@ -302,14 +300,18 @@ function UserDashboard({ laporan, wilayahNama }: { laporan: LaporanPolisi[]; wil
 export default function DashboardPage() {
   const { user, init } = useAuthStore()
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
+  const [totalLaporan, setTotalLaporan] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { init() }, [init])
 
   useEffect(() => {
-    laporanApi.list()
-      .then((res) => setLaporan(res.data.data || []))
+    laporanApi.list({ page: 1, limit: 1000 })
+      .then((res) => {
+        setLaporan(res.data.data || [])
+        setTotalLaporan(res.data.meta?.total ?? 0)
+      })
       .catch(() => setError('Gagal memuat data dari server.'))
       .finally(() => setLoading(false))
   }, [])
@@ -341,6 +343,6 @@ export default function DashboardPage() {
   const wilayahNama = user?.wilayah?.nama ?? ''
 
   return isAdmin
-    ? <AdminDashboard laporan={laporan} />
-    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} />
+    ? <AdminDashboard laporan={laporan} total={totalLaporan} />
+    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} />
 }

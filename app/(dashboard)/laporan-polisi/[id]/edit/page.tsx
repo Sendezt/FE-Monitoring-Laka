@@ -10,11 +10,23 @@ import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 import Link from 'next/link'
 
-interface VehicleForm { id?: number; peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string }
+interface VehicleForm { id?: number; peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string; masa_laku_sw?: string }
 interface VictimForm { id?: number; nama: string; usia: string; profesi_id: string; cidera_id: string; kendaraan_index: string }
 
-const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '' })
+const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '', masa_laku_sw: '' })
 const emptyVictim = (): VictimForm => ({ nama: '', usia: '', profesi_id: '', cidera_id: '', kendaraan_index: '0' })
+
+const getVehicleLabel = (vehicles: VehicleForm[], index: number) => {
+  const currentVehicle = vehicles[index]
+  if (!currentVehicle) return `Kendaraan #${index + 1}`
+  const roleName = currentVehicle.peran === 'korban' ? 'Korban' : 'Penjamin'
+  const sameRoleCount = vehicles.filter((v) => v.peran === currentVehicle.peran).length
+  if (sameRoleCount <= 1) {
+    return `Kendaraan ${roleName}`
+  }
+  const indexInRole = vehicles.slice(0, index + 1).filter((v) => v.peran === currentVehicle.peran).length
+  return `Kendaraan ${roleName} #${indexInRole}`
+}
 
 export default function EditReportPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -122,7 +134,8 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
         id: v.id,
         peran: v.peran,
         jenis_kendaraan_id: v.jenis_kendaraan_id ? String(v.jenis_kendaraan_id) : (v.jenis_kendaraan?.id ? String(v.jenis_kendaraan.id) : ''),
-        nopol: v.nopol
+        nopol: v.nopol,
+        masa_laku_sw: v.masa_laku_sw ? v.masa_laku_sw.slice(0, 10) : ''
       })))
       
       setVictims((data.korban || []).map(v => ({
@@ -182,12 +195,18 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
       rumah_sakit_id: rumahSakitId ? Number(rumahSakitId) : null,
       rumah_sakit_wilayah: rumahSakitWilayah || null,
       // API might handle full replacement or we just send the new arrays
-      kendaraan: vehicles.map((v) => ({ peran: v.peran, jenis_kendaraan_id: Number(v.jenis_kendaraan_id), nopol: v.nopol })),
+      kendaraan: vehicles.map((v) => ({
+        id: v.id,
+        peran: v.peran,
+        jenis_kendaraan_id: Number(v.jenis_kendaraan_id),
+        nopol: v.nopol,
+        masa_laku_sw: v.masa_laku_sw || undefined,
+      })),
       korban: victims.map((v) => ({
         nama: v.nama,
         usia: Number(v.usia),
-        profesi_id: v.profesi_id ? Number(v.profesi_id) : null,
-        cidera_id: v.cidera_id ? Number(v.cidera_id) : null,
+        profesi_id: v.profesi_id ? Number(v.profesi_id) : undefined,
+        cidera_id: v.cidera_id ? Number(v.cidera_id) : undefined,
         kendaraan_index: Number(v.kendaraan_index),
       })),
     }
@@ -343,14 +362,14 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
             {vehicles.map((v, i) => (
               <div key={i} className="rounded-lg border bg-muted/20 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">Kendaraan #{i + 1}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{getVehicleLabel(vehicles, i)}</span>
                   {vehicles.length > 1 && (
                     <button type="button" onClick={() => setVehicles(vehicles.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
                       <Trash2 size={14} />
                     </button>
                   )}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                   <Field label="Peran">
                     <select value={v.peran} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, peran: e.target.value as 'korban' | 'penjamin' } : x))} className={selectClass}>
                       <option value="korban">Korban</option>
@@ -365,6 +384,9 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
                   </Field>
                   <Field label="Nopol" required>
                     <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="AA 1234 BB" className={inputClass} />
+                  </Field>
+                  <Field label="Masa Laku SW">
+                    <input type="date" value={v.masa_laku_sw || ''} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, masa_laku_sw: e.target.value } : x))} className={inputClass} />
                   </Field>
                 </div>
               </div>
@@ -410,7 +432,7 @@ export default function EditReportPage({ params }: { params: Promise<{ id: strin
                   </Field>
                   <Field label="Kendaraan (index)">
                     <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
-                      {vehicles.map((veh, idx) => <option key={idx} value={idx}>#{idx + 1} · {veh.nopol || '(belum diisi)'}</option>)}
+                      {vehicles.map((veh, idx) => <option key={idx} value={idx}>{getVehicleLabel(vehicles, idx)} · {veh.nopol || '(belum diisi)'}</option>)}
                     </select>
                   </Field>
                 </div>

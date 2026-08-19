@@ -9,11 +9,23 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 
-interface VehicleForm { peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string }
+interface VehicleForm { peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string; masa_laku_sw?: string }
 interface VictimForm { nama: string; usia: string; profesi_id: string; cidera_id: string; kendaraan_index: string }
 
-const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '' })
+const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '', masa_laku_sw: '' })
 const emptyVictim = (): VictimForm => ({ nama: '', usia: '', profesi_id: '', cidera_id: '', kendaraan_index: '0' })
+
+const getVehicleLabel = (vehicles: VehicleForm[], index: number) => {
+  const currentVehicle = vehicles[index]
+  if (!currentVehicle) return `Kendaraan #${index + 1}`
+  const roleName = currentVehicle.peran === 'korban' ? 'Korban' : 'Penjamin'
+  const sameRoleCount = vehicles.filter((v) => v.peran === currentVehicle.peran).length
+  if (sameRoleCount <= 1) {
+    return `Kendaraan ${roleName}`
+  }
+  const indexInRole = vehicles.slice(0, index + 1).filter((v) => v.peran === currentVehicle.peran).length
+  return `Kendaraan ${roleName} #${indexInRole}`
+}
 
 export default function AddReportPage() {
   const router = useRouter()
@@ -142,12 +154,17 @@ export default function AddReportPage() {
       keterjaminan_id: keterjaminanId ? Number(keterjaminanId) : null,
       rumah_sakit_id: rumahSakitId ? Number(rumahSakitId) : null,
       rumah_sakit_wilayah: rumahSakitWilayah || null,
-      kendaraan: vehicles.map((v) => ({ peran: v.peran, jenis_kendaraan_id: Number(v.jenis_kendaraan_id), nopol: v.nopol })),
+      kendaraan: vehicles.map((v) => ({
+        peran: v.peran,
+        jenis_kendaraan_id: Number(v.jenis_kendaraan_id),
+        nopol: v.nopol,
+        masa_laku_sw: v.masa_laku_sw || undefined,
+      })),
       korban: victims.map((v) => ({
         nama: v.nama,
         usia: Number(v.usia),
-        profesi_id: v.profesi_id ? Number(v.profesi_id) : null,
-        cidera_id: v.cidera_id ? Number(v.cidera_id) : null,
+        profesi_id: v.profesi_id ? Number(v.profesi_id) : undefined,
+        cidera_id: v.cidera_id ? Number(v.cidera_id) : undefined,
         kendaraan_index: Number(v.kendaraan_index),
       })),
     }
@@ -245,7 +262,96 @@ export default function AddReportPage() {
           </div>
         </section>
 
-        {/* Section 3: Klasifikasi */}
+        {/* Section 3: Kendaraan */}
+        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
+          <SectionHeader icon={CarFront} title="Data Kendaraan" desc="Tambahkan semua kendaraan yang terlibat" />
+          <div className="space-y-4">
+            {vehicles.map((v, i) => (
+              <div key={i} className="rounded-lg border bg-muted/20 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">{getVehicleLabel(vehicles, i)}</span>
+                  {vehicles.length > 1 && (
+                    <button type="button" onClick={() => setVehicles(vehicles.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <Field label="Peran">
+                    <select value={v.peran} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, peran: e.target.value as 'korban' | 'penjamin' } : x))} className={selectClass}>
+                      <option value="korban">Korban</option>
+                      <option value="penjamin">Penjamin</option>
+                    </select>
+                  </Field>
+                  <Field label="Jenis Kendaraan" required>
+                    <select required value={v.jenis_kendaraan_id} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih jenis</option>
+                      {jenisKendaraan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Nopol" required>
+                    <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="AA 1234 BB" className={inputClass} />
+                  </Field>
+                  <Field label="Masa Laku SW">
+                    <input type="date" value={v.masa_laku_sw || ''} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, masa_laku_sw: e.target.value } : x))} className={inputClass} />
+                  </Field>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setVehicles([...vehicles, emptyVehicle()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
+              <Plus size={13} /> Tambah Kendaraan
+            </button>
+          </div>
+        </section>
+
+        {/* Section 4: Korban */}
+        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
+          <SectionHeader icon={HeartPulse} title="Data Korban" desc="Tambahkan semua korban yang terlibat" />
+          <div className="space-y-4">
+            {victims.map((v, i) => (
+              <div key={i} className="rounded-lg border bg-muted/20 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Korban #{i + 1}</span>
+                  {victims.length > 1 && (
+                    <button type="button" onClick={() => setVictims(victims.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  <Field label="Nama" required>
+                    <input required value={v.nama} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, nama: e.target.value } : x))} placeholder="Nama korban" className={inputClass} />
+                  </Field>
+                  <Field label="Usia" required>
+                    <input required type="number" min="0" max="120" value={v.usia} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, usia: e.target.value } : x))} placeholder="35" className={inputClass} />
+                  </Field>
+                  <Field label="Profesi">
+                    <select value={v.profesi_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih profesi</option>
+                      {profesi.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Jenis Cidera">
+                    <select value={v.cidera_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih cidera</option>
+                      {cidera.map((c) => <option key={c.id} value={c.id}>{c.nama}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Kendaraan (index)">
+                    <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
+                      {vehicles.map((veh, idx) => <option key={idx} value={idx}>{getVehicleLabel(vehicles, idx)} · {veh.nopol || '(belum diisi)'}</option>)}
+                    </select>
+                  </Field>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setVictims([...victims, emptyVictim()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
+              <Plus size={13} /> Tambah Korban
+            </button>
+          </div>
+        </section>
+
+        {/* Section 5: Klasifikasi */}
         <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
           <SectionHeader icon={ShieldAlert} title="Klasifikasi Kejadian" desc="Jenis, faktor, dan tindak lanjut kejadian" />
           <div className="grid gap-4 md:grid-cols-2">
@@ -294,92 +400,6 @@ export default function AddReportPage() {
             <Field label="Keterangan">
               <input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan (opsional)" className={inputClass} />
             </Field>
-          </div>
-        </section>
-
-        {/* Section 4: Kendaraan */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={CarFront} title="Data Kendaraan" desc="Tambahkan semua kendaraan yang terlibat" />
-          <div className="space-y-4">
-            {vehicles.map((v, i) => (
-              <div key={i} className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">Kendaraan #{i + 1}</span>
-                  {vehicles.length > 1 && (
-                    <button type="button" onClick={() => setVehicles(vehicles.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Peran">
-                    <select value={v.peran} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, peran: e.target.value as 'korban' | 'penjamin' } : x))} className={selectClass}>
-                      <option value="korban">Korban</option>
-                      <option value="penjamin">Penjamin</option>
-                    </select>
-                  </Field>
-                  <Field label="Jenis Kendaraan" required>
-                    <select required value={v.jenis_kendaraan_id} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih jenis</option>
-                      {jenisKendaraan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Nopol" required>
-                    <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="AA 1234 BB" className={inputClass} />
-                  </Field>
-                </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setVehicles([...vehicles, emptyVehicle()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
-              <Plus size={13} /> Tambah Kendaraan
-            </button>
-          </div>
-        </section>
-
-        {/* Section 5: Korban */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={HeartPulse} title="Data Korban" desc="Tambahkan semua korban yang terlibat" />
-          <div className="space-y-4">
-            {victims.map((v, i) => (
-              <div key={i} className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">Korban #{i + 1}</span>
-                  {victims.length > 1 && (
-                    <button type="button" onClick={() => setVictims(victims.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-                  <Field label="Nama" required>
-                    <input required value={v.nama} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, nama: e.target.value } : x))} placeholder="Nama korban" className={inputClass} />
-                  </Field>
-                  <Field label="Usia" required>
-                    <input required type="number" min="0" max="120" value={v.usia} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, usia: e.target.value } : x))} placeholder="35" className={inputClass} />
-                  </Field>
-                  <Field label="Profesi">
-                    <select value={v.profesi_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih profesi</option>
-                      {profesi.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Jenis Cidera">
-                    <select value={v.cidera_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih cidera</option>
-                      {cidera.map((c) => <option key={c.id} value={c.id}>{c.nama}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Kendaraan (index)">
-                    <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
-                      {vehicles.map((veh, idx) => <option key={idx} value={idx}>#{idx + 1} · {veh.nopol || '(belum diisi)'}</option>)}
-                    </select>
-                  </Field>
-                </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setVictims([...victims, emptyVictim()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
-              <Plus size={13} /> Tambah Korban
-            </button>
           </div>
         </section>
 

@@ -24,7 +24,7 @@ export default function LaporanPolisiPage() {
 
   const fetchLaporan = () => {
     setLoading(true)
-    laporanApi.list()
+    laporanApi.list({ page: 1, limit: 1000 })
       .then((res) => setLaporan(res.data.data || []))
       .catch(() => showError('Gagal memuat daftar laporan.'))
       .finally(() => setLoading(false))

@@ -139,7 +139,8 @@ export interface CreateLaporanPayload {
 }
 
 export const laporanApi = {
-  list: () => api.get<ApiResponse<LaporanPolisi[]>>('/api/laporan-polisi'),
+  list: (params?: { page?: number; limit?: number }) =>
+    api.get<PaginatedResponse<LaporanPolisi>>('/api/laporan-polisi', { params }),
   get: (id: number) => api.get<ApiResponse<LaporanPolisi>>(`/api/laporan-polisi/${id}`),
   create: (data: CreateLaporanPayload) => api.post<ApiResponse<LaporanPolisi>>('/api/laporan-polisi', data),
   update: (id: number, data: Partial<CreateLaporanPayload>) => api.put<ApiResponse<LaporanPolisi>>(`/api/laporan-polisi/${id}`, data),
