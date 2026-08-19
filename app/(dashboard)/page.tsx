@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   FilePlus2, ClipboardList, CalendarDays, HeartPulse,
   Loader2, TrendingUp, AlertCircle, ShieldCheck,
-  BarChart2, MapPin
+  BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
@@ -115,8 +115,280 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
   )
 }
 
+interface StatusLpCardData {
+  total: number
+  total_terlambat: number
+  persentase_terlambat: string
+  total_normal: number
+  persentase_normal: string
+}
+
+interface BreakdownCardData {
+  total_terlambat: number
+  terlambat_1_3_hari: number
+  persentase_1_3_hari: string
+  terlambat_4_7_hari: number
+  persentase_4_7_hari: string
+  terlambat_lebih_7_hari: number
+  persentase_lebih_7_hari: string
+}
+
+interface JenisLakaCardData {
+  total_laka: number
+  laka_tunggal: {
+    total: number
+    persentase: string
+  }
+  laka_non_tunggal: {
+    total: number
+    persentase: string
+  }
+}
+
+function LakaMonitoringCards({
+  statusData,
+  breakdownData,
+  jenisLakaData,
+}: {
+  statusData: StatusLpCardData | null
+  breakdownData: BreakdownCardData | null
+  jenisLakaData: JenisLakaCardData | null
+}) {
+  const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
+  const displayPersen = (p?: string) => {
+    if (!p) return '0%'
+    const val = parseFloat(p)
+    return isNaN(val) ? p : `${Math.round(val)}%`
+  }
+
+  const chartData = [
+    { name: '1-3 Hari', value: breakdownData?.terlambat_1_3_hari ?? 0, color: '#f97316' },
+    { name: '4-7 Hari', value: breakdownData?.terlambat_4_7_hari ?? 0, color: '#e11d48' },
+    { name: '>7 Hari', value: breakdownData?.terlambat_lebih_7_hari ?? 0, color: '#db2777' },
+  ].filter((item) => item.value > 0)
+
+  const hasData = chartData.length > 0
+  const finalChartData = hasData ? chartData : [{ name: 'Tidak ada data', value: 1, color: '#e2e8f0' }]
+
+  return (
+    <>
+      <div className="grid gap-6 md:grid-cols-2 mt-6">
+        {/* CARD 1: TOTAL LP */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total LP</span>
+              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl p-2 shrink-0">
+                <FileText size={20} />
+              </div>
+            </div>
+
+            <div className="py-6">
+              <span className="text-5xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+                {formatNum(statusData?.total ?? 0)}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-auto">
+            {/* Normal */}
+            <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">NORMAL</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  {statusData?.persentase_normal ?? '0.00%'}
+                </span>
+              </div>
+              <span className="text-xl font-extrabold text-slate-800 dark:text-slate-200">
+                {formatNum(statusData?.total_normal ?? 0)}
+              </span>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: statusData?.persentase_normal ?? '0%' }}
+                />
+              </div>
+            </div>
+
+            {/* Terlambat */}
+            <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 tracking-wider">TERLAMBAT</span>
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                  {statusData?.persentase_terlambat ?? '0.00%'}
+                </span>
+              </div>
+              <span className="text-xl font-extrabold text-slate-800 dark:text-slate-200">
+                {formatNum(statusData?.total_terlambat ?? 0)}
+              </span>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-rose-500 transition-all duration-500"
+                  style={{ width: statusData?.persentase_terlambat ?? '0%' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CARD 2: DISTRIBUSI KETERLAMBATAN */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 border-l-[6px] border-l-rose-600 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">LP Terlambat Lapor</span>
+              <div className="flex items-center justify-center bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl p-2 shrink-0">
+                <LucidePieChart size={20} />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-4">
+              {/* Donut Chart */}
+              <div className="relative flex items-center justify-center size-[140px] shrink-0 mx-auto sm:mx-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={finalChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={hasData ? 3 : 0}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {finalChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Terlambat</span>
+                  <span className="text-lg font-extrabold text-slate-800 dark:text-white leading-tight">
+                    {formatNum(breakdownData?.total_terlambat ?? 0)}
+                  </span>
+                  <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                    {statusData?.persentase_terlambat ?? '0.00%'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Breakdown List */}
+              <div className="flex-1 w-full space-y-2">
+                {/* 1-3 HARI */}
+                <div className="bg-orange-50/50 dark:bg-orange-950/10 border border-orange-100/50 dark:border-orange-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-[#f97316] shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 tracking-wider">1-3 HARI</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {formatNum(breakdownData?.terlambat_1_3_hari ?? 0)}
+                    </span>
+                    <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                      {breakdownData?.persentase_1_3_hari ?? '0.00%'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4-7 HARI */}
+                <div className="bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100/50 dark:border-rose-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-[#e11d48] shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 tracking-wider">4-7 HARI</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {formatNum(breakdownData?.terlambat_4_7_hari ?? 0)}
+                    </span>
+                    <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                      {breakdownData?.persentase_4_7_hari ?? '0.00%'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* >7 HARI */}
+                <div className="bg-pink-50/50 dark:bg-pink-950/10 border border-pink-100/50 dark:border-pink-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-[#db2777] shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 tracking-wider">&gt;7 HARI</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      {formatNum(breakdownData?.terlambat_lebih_7_hari ?? 0)}
+                    </span>
+                    <span className="text-[10px] font-semibold text-pink-600 dark:text-pink-400">
+                      {breakdownData?.persentase_lebih_7_hari ?? '0.00%'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 mt-6">
+        {/* CARD 3: LAKA TUNGGAL */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-4">LAKA TUNGGAL</span>
+            <span className="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white block mb-6">
+              {formatNum(jenisLakaData?.laka_tunggal?.total ?? 0)}
+            </span>
+          </div>
+          <div className="space-y-2 mt-auto">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-orange-500 transition-all duration-500"
+                style={{ width: jenisLakaData?.laka_tunggal?.persentase ?? '0%' }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground block">
+              {displayPersen(jenisLakaData?.laka_tunggal?.persentase)} dari total insiden
+            </span>
+          </div>
+        </div>
+
+        {/* CARD 4: LAKA NON-TUNGGAL */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-4">LAKA NON-TUNGGAL</span>
+            <span className="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white block mb-6">
+              {formatNum(jenisLakaData?.laka_non_tunggal?.total ?? 0)}
+            </span>
+          </div>
+          <div className="space-y-2 mt-auto">
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                style={{ width: jenisLakaData?.laka_non_tunggal?.persentase ?? '0%' }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground block">
+              {displayPersen(jenisLakaData?.laka_non_tunggal?.persentase)} dari total insiden
+            </span>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 /* ─── Admin Dashboard ─── */
-function AdminDashboard({ laporan, total }: { laporan: LaporanPolisi[]; total: number }) {
+function AdminDashboard({
+  laporan,
+  total,
+  statusData,
+  breakdownData,
+  jenisLakaData,
+}: {
+  laporan: LaporanPolisi[]
+  total: number
+  statusData: StatusLpCardData | null
+  breakdownData: BreakdownCardData | null
+  jenisLakaData: JenisLakaCardData | null
+}) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
@@ -158,6 +430,8 @@ function AdminDashboard({ laporan, total }: { laporan: LaporanPolisi[]; total: n
         <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
         <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
       </div>
+
+      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -223,7 +497,21 @@ function AdminDashboard({ laporan, total }: { laporan: LaporanPolisi[]; total: n
 }
 
 /* ─── User Dashboard ─── */
-function UserDashboard({ laporan, wilayahNama, total }: { laporan: LaporanPolisi[]; wilayahNama: string; total: number }) {
+function UserDashboard({
+  laporan,
+  wilayahNama,
+  total,
+  statusData,
+  breakdownData,
+  jenisLakaData,
+}: {
+  laporan: LaporanPolisi[]
+  wilayahNama: string
+  total: number
+  statusData: StatusLpCardData | null
+  breakdownData: BreakdownCardData | null
+  jenisLakaData: JenisLakaCardData | null
+}) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
@@ -255,6 +543,8 @@ function UserDashboard({ laporan, wilayahNama, total }: { laporan: LaporanPolisi
         <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
         <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
       </div>
+
+      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -301,19 +591,41 @@ export default function DashboardPage() {
   const { user, init } = useAuthStore()
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
   const [totalLaporan, setTotalLaporan] = useState(0)
+  const [statusLpData, setStatusLpData] = useState<StatusLpCardData | null>(null)
+  const [breakdownData, setBreakdownData] = useState<BreakdownCardData | null>(null)
+  const [jenisLakaData, setJenisLakaData] = useState<JenisLakaCardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { init() }, [init])
 
   useEffect(() => {
-    laporanApi.list({ page: 1, limit: 1000 })
-      .then((res) => {
-        setLaporan(res.data.data || [])
-        setTotalLaporan(res.data.meta?.total ?? 0)
-      })
-      .catch(() => setError('Gagal memuat data dari server.'))
-      .finally(() => setLoading(false))
+    const loadData = async () => {
+      try {
+        setLoading(true)
+
+        // Fetch required list
+        const listRes = await laporanApi.list({ page: 1, limit: 1000 })
+        setLaporan(listRes.data.data || [])
+        setTotalLaporan(listRes.data.meta?.total ?? 0)
+
+        // Fetch optional stats in parallel
+        const [statusRes, breakdownRes, jenisLakaRes] = await Promise.all([
+          laporanApi.statusLp().catch(() => null),
+          laporanApi.breakdownTerlambat().catch(() => null),
+          laporanApi.jenisLaka().catch(() => null)
+        ])
+
+        if (statusRes) setStatusLpData(statusRes.data.data)
+        if (breakdownRes) setBreakdownData(breakdownRes.data.data)
+        if (jenisLakaRes) setJenisLakaData(jenisLakaRes.data.data)
+      } catch (err) {
+        setError('Gagal memuat data dari server.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
   }, [])
 
   if (loading) {
@@ -343,6 +655,6 @@ export default function DashboardPage() {
   const wilayahNama = user?.wilayah?.nama ?? ''
 
   return isAdmin
-    ? <AdminDashboard laporan={laporan} total={totalLaporan} />
-    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} />
+    ? <AdminDashboard laporan={laporan} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
+    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
 }

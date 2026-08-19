@@ -147,6 +147,33 @@ export const laporanApi = {
   delete: (id: number) => api.delete<ApiResponse<null>>(`/api/laporan-polisi/${id}`),
   statistikKomparasi: (p: { start1: string; end1: string; start2: string; end2: string }) =>
     api.get<ApiResponse<unknown>>('/api/laporan-polisi/statistik/komparasi', { params: p }),
+  statusLp: () => api.get<ApiResponse<{
+    total: number
+    total_terlambat: number
+    persentase_terlambat: string
+    total_normal: number
+    persentase_normal: string
+  }>>('/api/laporan-polisi/status-lp'),
+  breakdownTerlambat: () => api.get<ApiResponse<{
+    total_terlambat: number
+    terlambat_1_3_hari: number
+    persentase_1_3_hari: string
+    terlambat_4_7_hari: number
+    persentase_4_7_hari: string
+    terlambat_lebih_7_hari: number
+    persentase_lebih_7_hari: string
+  }>>('/api/laporan-polisi/breakdown-terlambat'),
+  jenisLaka: () => api.get<ApiResponse<{
+    total_laka: number
+    laka_tunggal: {
+      total: number
+      persentase: string
+    }
+    laka_non_tunggal: {
+      total: number
+      persentase: string
+    }
+  }>>('/api/laporan-polisi/statistik/jenis-laka'),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
