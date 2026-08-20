@@ -8,7 +8,7 @@ import {
   BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart,
   Users, Car
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList, LineChart, Line, Legend } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
 import { laporanApi, chartApi, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
@@ -18,6 +18,7 @@ import type {
   JenisKendaraanKorbanData,
   TopKecamatanLakaItem,
   TopRumahSakitKorbanItem,
+  TrendHarianData,
 } from '@/lib/api'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a78bfa', '#ddd6fe']
@@ -503,6 +504,123 @@ function TopRumahSakitBarChart({
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+/* ─── Row 8: Trend Line Chart ──────────────────────────────────────────────── */
+
+function TrendLineChart({
+  data,
+  loading,
+  error,
+  periodeUtama,
+  periodePembanding,
+}: {
+  data: any[] | null
+  loading: boolean
+  error: string | null
+  periodeUtama: { tanggal_awal: string; tanggal_akhir: string } | null
+  periodePembanding: { tanggal_awal: string; tanggal_akhir: string } | null
+}) {
+  if (loading) {
+    return (
+      <div className="flex h-[320px] items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 size={20} className="animate-spin" />
+        <span className="text-sm">Memuat data trend...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[320px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>{error}</span>
+      </div>
+    )
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[320px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Belum ada data trend</span>
+      </div>
+    )
+  }
+
+  // Format bulan singkat Indonesia
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGS', 'SEP', 'OKT', 'NOV', 'DES']
+  const getMonth = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return monthNames[d.getMonth()]
+  }
+
+  const labelUtama = `LP ${periodeUtama ? getMonth(periodeUtama.tanggal_awal) : ''}`
+  const labelKorbanUtama = `KRB ${periodeUtama ? getMonth(periodeUtama.tanggal_awal) : ''}`
+  const labelPembanding = `LP ${periodePembanding ? getMonth(periodePembanding.tanggal_awal) : ''}`
+  const labelKorbanPembanding = `KRB ${periodePembanding ? getMonth(periodePembanding.tanggal_awal) : ''}`
+
+  const colors = {
+    lpUtama: '#3b82f6',      // biru
+    korbanUtama: '#ef4444',  // merah
+    lpPembanding: '#f59e0b', // kuning/oranye
+    korbanPembanding: '#10b981', // hijau
+  }
+
+  return (
+    <div className="w-full h-[320px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis dataKey="tanggal" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} />
+          <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} allowDecimals={false} />
+          <Tooltip
+            contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+            formatter={(value: number, name: string) => [`${value}`, name]}
+          />
+          <Legend verticalAlign="top" height={36} iconType="circle" />
+          <Line
+            type="monotone"
+            dataKey="lp_periode_utama"
+            name={labelUtama}
+            stroke={colors.lpUtama}
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="korban_periode_utama"
+            name={labelKorbanUtama}
+            stroke={colors.korbanUtama}
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="lp_periode_pembanding"
+            name={labelPembanding}
+            stroke={colors.lpPembanding}
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="korban_periode_pembanding"
+            name={labelKorbanPembanding}
+            stroke={colors.korbanPembanding}
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }
 
@@ -1246,6 +1364,9 @@ function AdminDashboard({
   jenisKendaraanData,
   topKecamatanData,
   topRumahSakitData,
+  trendData,
+  trendLoading,
+  trendError,
 }: {
   laporan: LaporanPolisi[]
   total: number
@@ -1261,6 +1382,9 @@ function AdminDashboard({
   jenisKendaraanData?: JenisKendaraanKorbanData | null
   topKecamatanData?: TopKecamatanLakaItem[] | null
   topRumahSakitData?: TopRumahSakitKorbanItem[] | null
+  trendData: any
+  trendLoading: boolean
+  trendError: string | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -1311,6 +1435,33 @@ function AdminDashboard({
         topKecamatanData={topKecamatanData}
         topRumahSakitData={topRumahSakitData}
       />
+
+      {/* ROW 8: TREND LP & KORBAN */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            ROW 8: TREND LP & KORBAN
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              TREND LP & KORBAN
+            </span>
+            <div className="flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl p-2 shrink-0">
+              <TrendingUp size={18} />
+            </div>
+          </div>
+          <TrendLineChart
+            data={trendData?.trend || null}
+            loading={trendLoading}
+            error={trendError}
+            periodeUtama={trendData?.periode_utama || null}
+            periodePembanding={trendData?.periode_pembanding || null}
+          />
+        </div>
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -1393,6 +1544,9 @@ function UserDashboard({
   jenisKendaraanData,
   topKecamatanData,
   topRumahSakitData,
+  trendData,
+  trendLoading,
+  trendError,
 }: {
   laporan: LaporanPolisi[]
   wilayahNama: string
@@ -1409,6 +1563,9 @@ function UserDashboard({
   jenisKendaraanData?: JenisKendaraanKorbanData | null
   topKecamatanData?: TopKecamatanLakaItem[] | null
   topRumahSakitData?: TopRumahSakitKorbanItem[] | null
+  trendData: any
+  trendLoading: boolean
+  trendError: string | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -1449,6 +1606,33 @@ function UserDashboard({
         topKecamatanData={topKecamatanData}
         topRumahSakitData={topRumahSakitData}
       />
+
+      {/* ROW 8: TREND LP & KORBAN */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            ROW 8: TREND LP & KORBAN
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              TREND LP & KORBAN
+            </span>
+            <div className="flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl p-2 shrink-0">
+              <TrendingUp size={18} />
+            </div>
+          </div>
+          <TrendLineChart
+            data={trendData?.trend || null}
+            loading={trendLoading}
+            error={trendError}
+            periodeUtama={trendData?.periode_utama || null}
+            periodePembanding={trendData?.periode_pembanding || null}
+          />
+        </div>
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -1508,6 +1692,9 @@ export default function DashboardPage() {
   const [jenisKendaraanData, setJenisKendaraanData] = useState<JenisKendaraanKorbanData | null>(null)
   const [topKecamatanData, setTopKecamatanData] = useState<TopKecamatanLakaItem[] | null>(null)
   const [topRumahSakitData, setTopRumahSakitData] = useState<TopRumahSakitKorbanItem[] | null>(null)
+  const [trendData, setTrendData] = useState<any>(null)
+  const [trendLoading, setTrendLoading] = useState(false)
+  const [trendError, setTrendError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -1571,6 +1758,37 @@ export default function DashboardPage() {
     loadData()
   }, [])
 
+  // Fetch trend data
+  useEffect(() => {
+    if (!user) return
+
+    const fetchTrend = async () => {
+      try {
+        setTrendLoading(true)
+        setTrendError(null)
+        const today = new Date()
+        const thirtyDaysAgo = new Date(today)
+        thirtyDaysAgo.setDate(today.getDate() - 30)
+        const tanggalAwal = thirtyDaysAgo.toISOString().split('T')[0]
+        const tanggalAkhir = today.toISOString().split('T')[0]
+        const polresId = user.role === 'admin' ? 'ALL' : user.wilayah_id?.toString() || 'ALL'
+
+        const res = await chartApi.trendHarian({
+          tanggal_awal: tanggalAwal,
+          tanggal_akhir: tanggalAkhir,
+          polres_id: polresId,
+        })
+        setTrendData(res.data.data)
+      } catch (err) {
+        setTrendError('Gagal memuat data trend')
+      } finally {
+        setTrendLoading(false)
+      }
+    }
+
+    fetchTrend()
+  }, [user])
+
   if (loading) {
     return (
       <SILakaShell>
@@ -1613,6 +1831,9 @@ export default function DashboardPage() {
       jenisKendaraanData={jenisKendaraanData}
       topKecamatanData={topKecamatanData}
       topRumahSakitData={topRumahSakitData}
+      trendData={trendData}
+      trendLoading={trendLoading}
+      trendError={trendError}
     />
     : <UserDashboard
       laporan={laporan}
@@ -1630,5 +1851,8 @@ export default function DashboardPage() {
       jenisKendaraanData={jenisKendaraanData}
       topKecamatanData={topKecamatanData}
       topRumahSakitData={topRumahSakitData}
+      trendData={trendData}
+      trendLoading={trendLoading}
+      trendError={trendError}
     />
 }

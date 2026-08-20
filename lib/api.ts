@@ -275,6 +275,26 @@ export interface TopRumahSakitKorbanItem {
   total_korban: number
 }
 
+export interface TrendHarianItem {
+  tanggal: string // format "01", "02", ... sesuai hari dalam bulan
+  lp_periode_utama: number
+  korban_periode_utama: number
+  lp_periode_pembanding: number
+  korban_periode_pembanding: number
+}
+
+export interface TrendHarianData {
+  periode_utama: {
+    tanggal_awal: string
+    tanggal_akhir: string
+  }
+  periode_pembanding: {
+    tanggal_awal: string
+    tanggal_akhir: string
+  }
+  trend: TrendHarianItem[]
+}
+
 export const chartApi = {
   totalLakaPerWilayah: () =>
     api.get<ApiResponse<TotalLakaPerWilayahData>>('/api/chart/statistik/total-laka-per-wilayah'),
@@ -290,6 +310,8 @@ export const chartApi = {
     api.get<ApiResponse<TopKecamatanLakaItem[]>>('/api/chart/statistik/top-20-kecamatan-laka'),
   topRumahSakitKorban: () =>
     api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban'),
+  trendHarian: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id: string }) =>
+    api.get<ApiResponse<TrendHarianData>>('/api/chart/statistik/trend-harian', { params }),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
