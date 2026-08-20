@@ -1337,7 +1337,7 @@ function KeterjaminanCards({ data }: { data: KeterjaminanCardData | null }) {
                 />
               </div>
               <span className="text-xs text-muted-foreground block">
-                {displayPersen(item?.persentase)} dari total laporan
+                {displayPersen(item?.persentase)} dari total korban
               </span>
             </div>
           </div>

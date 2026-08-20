@@ -81,8 +81,14 @@ export interface Korban {
   cidera_id?: number
   kendaraan_index?: number // for create all-in-one
   kendaraan_id?: number    // for GET response
+  tindak_lanjut_id?: number
+  jenis_jaminan_id?: number
+  keterjaminan_id?: number
   profesi?: { id: number; nama: string }
   cidera?: { id: number; nama: string }
+  tindakLanjut?: { id: number; nama: string }
+  jenisJaminan?: { id: number; nama: string }
+  keterjaminan?: { id: number; nama: string }
 }
 
 export interface LaporanPolisi {
@@ -99,9 +105,6 @@ export interface LaporanPolisi {
   rumah_sakit_id?: number
   rumah_sakit_wilayah?: string
   laka_tunggal: boolean
-  tindak_lanjut_id?: number
-  jenis_jaminan_id?: number
-  keterjaminan_id?: number
   kasus_tabrak_kecelakaan_id?: number
   faktor_penyebab_laka_id?: number
   sifat_laka_id?: number
@@ -127,15 +130,12 @@ export interface CreateLaporanPayload {
   rumah_sakit_id?: number | null
   rumah_sakit_wilayah?: string | null
   laka_tunggal: boolean
-  tindak_lanjut_id?: number | null
-  jenis_jaminan_id?: number | null
-  keterjaminan_id?: number | null
   kasus_tabrak_kecelakaan_id?: number | null
   faktor_penyebab_laka_id?: number | null
   sifat_laka_id?: number | null
   keterangan?: string | null
   kendaraan: Omit<Kendaraan, 'id' | 'jenis_kendaraan'>[]
-  korban: Omit<Korban, 'id' | 'kendaraan_id' | 'profesi' | 'cidera'>[]
+  korban: Omit<Korban, 'id' | 'kendaraan_id' | 'profesi' | 'cidera' | 'tindakLanjut' | 'jenisJaminan' | 'keterjaminan'>[]
 }
 
 export interface KeterjaminanItem {
@@ -146,7 +146,7 @@ export interface KeterjaminanItem {
 }
 
 export interface KeterjaminanCardData {
-  total_laporan: number
+  total_korban: number
   rincian_keterjaminan: KeterjaminanItem[]
   tanpa_keterjaminan: {
     total: number

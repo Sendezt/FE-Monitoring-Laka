@@ -9,11 +9,28 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 
-interface VehicleForm { peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string; masa_laku_sw?: string }
-interface VictimForm { nama: string; usia: string; profesi_id: string; cidera_id: string; kendaraan_index: string }
+interface VictimForm {
+  nama: string
+  usia: string
+  profesi_id: string
+  cidera_id: string
+  kendaraan_index: string
+  tindak_lanjut_id: string
+  jenis_jaminan_id: string
+  keterjaminan_id: string
+}
 
 const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '', masa_laku_sw: '' })
-const emptyVictim = (): VictimForm => ({ nama: '', usia: '', profesi_id: '', cidera_id: '', kendaraan_index: '0' })
+const emptyVictim = (): VictimForm => ({
+  nama: '',
+  usia: '',
+  profesi_id: '',
+  cidera_id: '',
+  kendaraan_index: '0',
+  tindak_lanjut_id: '',
+  jenis_jaminan_id: '',
+  keterjaminan_id: ''
+})
 
 const getVehicleLabel = (vehicles: VehicleForm[], index: number) => {
   const currentVehicle = vehicles[index]
@@ -61,9 +78,6 @@ export default function AddReportPage() {
   const [sifatLakaId, setSifatLakaId] = useState('')
   const [faktorId, setFaktorId] = useState('')
   const [kasusId, setKasusId] = useState('')
-  const [tindakLanjutId, setTindakLanjutId] = useState('')
-  const [jenisJaminanId, setJenisJaminanId] = useState('')
-  const [keterjaminanId, setKeterjaminanId] = useState('')
   const [rumahSakitId, setRumahSakitId] = useState('')
   const [rumahSakitWilayah, setRumahSakitWilayah] = useState('')
   const [vehicles, setVehicles] = useState<VehicleForm[]>([emptyVehicle()])
@@ -149,9 +163,6 @@ export default function AddReportPage() {
       sifat_laka_id: sifatLakaId ? Number(sifatLakaId) : null,
       faktor_penyebab_laka_id: faktorId ? Number(faktorId) : null,
       kasus_tabrak_kecelakaan_id: kasusId ? Number(kasusId) : null,
-      tindak_lanjut_id: tindakLanjutId ? Number(tindakLanjutId) : null,
-      jenis_jaminan_id: jenisJaminanId ? Number(jenisJaminanId) : null,
-      keterjaminan_id: keterjaminanId ? Number(keterjaminanId) : null,
       rumah_sakit_id: rumahSakitId ? Number(rumahSakitId) : null,
       rumah_sakit_wilayah: rumahSakitWilayah || null,
       kendaraan: vehicles.map((v) => ({
@@ -166,6 +177,9 @@ export default function AddReportPage() {
         profesi_id: v.profesi_id ? Number(v.profesi_id) : undefined,
         cidera_id: v.cidera_id ? Number(v.cidera_id) : undefined,
         kendaraan_index: Number(v.kendaraan_index),
+        tindak_lanjut_id: v.tindak_lanjut_id ? Number(v.tindak_lanjut_id) : undefined,
+        jenis_jaminan_id: v.jenis_jaminan_id ? Number(v.jenis_jaminan_id) : undefined,
+        keterjaminan_id: v.keterjaminan_id ? Number(v.keterjaminan_id) : undefined,
       })),
     }
 
@@ -318,7 +332,7 @@ export default function AddReportPage() {
                     </button>
                   )}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                   <Field label="Nama" required>
                     <input required value={v.nama} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, nama: e.target.value } : x))} placeholder="Nama korban" className={inputClass} />
                   </Field>
@@ -340,6 +354,24 @@ export default function AddReportPage() {
                   <Field label="Kendaraan (index)">
                     <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
                       {vehicles.map((veh, idx) => <option key={idx} value={idx}>{getVehicleLabel(vehicles, idx)} · {veh.nopol || '(belum diisi)'}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Tindak Lanjut">
+                    <select value={v.tindak_lanjut_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, tindak_lanjut_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih tindak lanjut</option>
+                      {tindakLanjut.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Jenis Jaminan">
+                    <select value={v.jenis_jaminan_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, jenis_jaminan_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih jenis jaminan</option>
+                      {jenisJaminan.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Keterjaminan">
+                    <select value={v.keterjaminan_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, keterjaminan_id: e.target.value } : x))} className={selectClass}>
+                      <option value="">Pilih keterjaminan</option>
+                      {keterjaminan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
                     </select>
                   </Field>
                 </div>
@@ -371,24 +403,6 @@ export default function AddReportPage() {
               <select value={kasusId} onChange={(e) => setKasusId(e.target.value)} className={selectClass}>
                 <option value="">Pilih kasus tabrak</option>
                 {kasusTabrak.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-              </select>
-            </Field>
-            <Field label="Tindak Lanjut">
-              <select value={tindakLanjutId} onChange={(e) => setTindakLanjutId(e.target.value)} className={selectClass}>
-                <option value="">Pilih tindak lanjut</option>
-                {tindakLanjut.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
-              </select>
-            </Field>
-            <Field label="Jenis Jaminan">
-              <select value={jenisJaminanId} onChange={(e) => setJenisJaminanId(e.target.value)} className={selectClass}>
-                <option value="">Pilih jenis jaminan</option>
-                {jenisJaminan.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-              </select>
-            </Field>
-            <Field label="Keterjaminan">
-              <select value={keterjaminanId} onChange={(e) => setKeterjaminanId(e.target.value)} className={selectClass}>
-                <option value="">Pilih keterjaminan</option>
-                {keterjaminan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
               </select>
             </Field>
             <Field label="Laka Tunggal">
