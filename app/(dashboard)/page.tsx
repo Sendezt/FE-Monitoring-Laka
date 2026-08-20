@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   FilePlus2, ClipboardList, CalendarDays, HeartPulse,
-  Loader2, TrendingUp, AlertCircle, ShieldCheck,
+  Loader2, TrendingUp, AlertCircle, ShieldCheck, ShieldAlert, ShieldQuestion,
   BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
-import { laporanApi, type LaporanPolisi } from '@/lib/api'
+import { laporanApi, type LaporanPolisi, type KeterjaminanCardData } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
+
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a78bfa', '#ddd6fe']
 
@@ -42,7 +43,7 @@ function MonthlyBarChart({ data }: { data: { name: string; count: number }[] }) 
 function JenisLakaPieChart({ tunggal, total }: { tunggal: number; total: number }) {
   const data = [
     { name: 'Laka Tunggal', value: tunggal },
-    { name: 'Multi Pihak', value: total - tunggal },
+    { name: 'Laka Non-Tunggal', value: total - tunggal },
   ]
   return total > 0 ? (
     <>
@@ -145,14 +146,25 @@ interface JenisLakaCardData {
   }
 }
 
+interface KorbanCardData {
+  total_korban: number
+  cidera_LL: { total: number; persentase: string }
+  cidera_LL_MD: { total: number; persentase: string }
+  cidera_MD: { total: number; persentase: string }
+}
+
 function LakaMonitoringCards({
   statusData,
   breakdownData,
   jenisLakaData,
+  korbanData,
+  keterjaminanData,
 }: {
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
   jenisLakaData: JenisLakaCardData | null
+  korbanData: KorbanCardData | null
+  keterjaminanData: KeterjaminanCardData | null
 }) {
   const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
   const displayPersen = (p?: string) => {
@@ -371,7 +383,184 @@ function LakaMonitoringCards({
           </div>
         </div>
       </div>
+
+      {/* ROW 3: KORBAN */}
+      <div className="grid gap-6 md:grid-cols-1 mt-6">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Korban</span>
+            <div className="flex items-center justify-center bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl p-2 shrink-0">
+              <HeartPulse size={20} />
+            </div>
+          </div>
+
+          <div className="py-6">
+            <span className="text-5xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+              {formatNum(korbanData?.total_korban ?? 0)}
+            </span>
+            <span className="ml-2 text-sm text-muted-foreground">orang</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-auto">
+            {/* Cidera LL */}
+            <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 tracking-wider">LL</span>
+                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                  {korbanData?.cidera_LL?.persentase ?? '0.00%'}
+                </span>
+              </div>
+              <span className="text-xl font-extrabold text-slate-800 dark:text-slate-200">
+                {formatNum(korbanData?.cidera_LL?.total ?? 0)}
+              </span>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                  style={{ width: korbanData?.cidera_LL?.persentase ?? '0%' }}
+                />
+              </div>
+            </div>
+
+            {/* Cidera LL + MD */}
+            <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 tracking-wider">LL - MD</span>
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                  {korbanData?.cidera_LL_MD?.persentase ?? '0.00%'}
+                </span>
+              </div>
+              <span className="text-xl font-extrabold text-slate-800 dark:text-slate-200">
+                {formatNum(korbanData?.cidera_LL_MD?.total ?? 0)}
+              </span>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-orange-500 transition-all duration-500"
+                  style={{ width: korbanData?.cidera_LL_MD?.persentase ?? '0%' }}
+                />
+              </div>
+            </div>
+
+            {/* Cidera MD */}
+            <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 tracking-wider">MD</span>
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                  {korbanData?.cidera_MD?.persentase ?? '0.00%'}
+                </span>
+              </div>
+              <span className="text-xl font-extrabold text-slate-800 dark:text-slate-200">
+                {formatNum(korbanData?.cidera_MD?.total ?? 0)}
+              </span>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-rose-500 transition-all duration-500"
+                  style={{ width: korbanData?.cidera_MD?.persentase ?? '0%' }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <KeterjaminanCards data={keterjaminanData} />
     </>
+  )
+}
+
+function KeterjaminanCards({ data }: { data: KeterjaminanCardData | null }) {
+  const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
+  const displayPersen = (p?: string) => {
+    if (!p) return '0%'
+    const val = parseFloat(p)
+    return isNaN(val) ? p : `${Math.round(val)}%`
+  }
+
+  const findByNama = (nama: string) =>
+    data?.rincian_keterjaminan?.find((r) => r.nama.toLowerCase() === nama.toLowerCase())
+
+  const cards = [
+    {
+      key: 'terjamin',
+      label: 'TERJAMIN',
+      item: findByNama('Terjamin'),
+      icon: ShieldCheck,
+      accent: 'emerald',
+    },
+    {
+      key: 'tidak-terjamin',
+      label: 'TIDAK TERJAMIN',
+      item: findByNama('Tidak Terjamin'),
+      icon: ShieldAlert,
+      accent: 'rose',
+    },
+    {
+      key: 'eg2r',
+      label: 'EG2R',
+      item: findByNama('EG2R'),
+      icon: ShieldQuestion,
+      accent: 'amber',
+    },
+  ] as const
+
+  const accentClasses: Record<string, { bg: string; text: string; border: string; bar: string }> = {
+    emerald: {
+      bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-100 dark:border-emerald-900/30',
+      bar: 'bg-emerald-500',
+    },
+    rose: {
+      bg: 'bg-rose-50 dark:bg-rose-950/40',
+      text: 'text-rose-600 dark:text-rose-400',
+      border: 'border-rose-100 dark:border-rose-900/30',
+      bar: 'bg-rose-500',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-950/40',
+      text: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-100 dark:border-amber-900/30',
+      bar: 'bg-amber-500',
+    },
+  }
+
+  return (
+    <div className="grid gap-6 md:grid-cols-3 mt-6">
+      {cards.map(({ key, label, item, icon: Icon, accent }) => {
+        const c = accentClasses[accent]
+        return (
+          <div
+            key={key}
+            className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+                <div className={`flex items-center justify-center ${c.bg} border ${c.border} ${c.text} rounded-xl p-2 shrink-0`}>
+                  <Icon size={20} />
+                </div>
+              </div>
+
+              <div className="py-6">
+                <span className="text-4xl font-extrabold tracking-tight text-slate-800 dark:text-white">
+                  {formatNum(item?.total ?? 0)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 mt-auto">
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${c.bar} transition-all duration-500`}
+                  style={{ width: item?.persentase ?? '0%' }}
+                />
+              </div>
+              <span className="text-xs text-muted-foreground block">
+                {displayPersen(item?.persentase)} dari total laporan
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -382,12 +571,16 @@ function AdminDashboard({
   statusData,
   breakdownData,
   jenisLakaData,
+  korbanData,
+  keterjaminanData
 }: {
   laporan: LaporanPolisi[]
   total: number
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
   jenisLakaData: JenisLakaCardData | null
+  korbanData: KorbanCardData | null
+  keterjaminanData: KeterjaminanCardData | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -414,7 +607,7 @@ function AdminDashboard({
       polresMap[key].count++
     }
   })
-  const topPolres = Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 5)
+  const topPolres = Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
 
   return (
     <SILakaShell title="Dashboard Admin" eyebrow="Data Laka JR">
@@ -424,14 +617,14 @@ function AdminDashboard({
         action={<Button href="/laporan-polisi/tambah"><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Laporan" value={String(total)} note="Seluruh data laporan" tone="success" icon={ClipboardList} />
         <StatCard label="Bulan Ini" value={String(bulanIni)} note={new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} icon={CalendarDays} />
         <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
         <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
-      </div>
+      </div> */}
 
-      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
+      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -441,7 +634,7 @@ function AdminDashboard({
         </div>
         <div className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
           <p className="mb-0.5 text-sm font-semibold text-foreground">Jenis Kecelakaan</p>
-          <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs multi pihak</p>
+          <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs Laka Non-Tunggal</p>
           <JenisLakaPieChart tunggal={lakaTunggal} total={total} />
         </div>
       </div>
@@ -451,7 +644,7 @@ function AdminDashboard({
           <div className="flex items-center justify-between px-5 py-4 border-b">
             <div>
               <p className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <ShieldCheck size={15} className="text-primary" /> Top 5 Polres
+                <ShieldCheck size={15} className="text-primary" /> Top 10 Polres
               </p>
               <p className="text-xs text-muted-foreground">Polres dengan laporan terbanyak</p>
             </div>
@@ -504,6 +697,8 @@ function UserDashboard({
   statusData,
   breakdownData,
   jenisLakaData,
+  korbanData,
+  keterjaminanData
 }: {
   laporan: LaporanPolisi[]
   wilayahNama: string
@@ -511,6 +706,8 @@ function UserDashboard({
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
   jenisLakaData: JenisLakaCardData | null
+  korbanData: KorbanCardData | null
+  keterjaminanData: KeterjaminanCardData | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -537,14 +734,14 @@ function UserDashboard({
         action={<Button href="/laporan-polisi/tambah"><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Laporan" value={String(total)} note="Di wilayah Anda" tone="success" icon={ClipboardList} />
         <StatCard label="Bulan Ini" value={String(bulanIni)} note={new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} icon={CalendarDays} />
         <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
         <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
-      </div>
+      </div> */}
 
-      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
+      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -594,6 +791,8 @@ export default function DashboardPage() {
   const [statusLpData, setStatusLpData] = useState<StatusLpCardData | null>(null)
   const [breakdownData, setBreakdownData] = useState<BreakdownCardData | null>(null)
   const [jenisLakaData, setJenisLakaData] = useState<JenisLakaCardData | null>(null)
+  const [korbanData, setKorbanData] = useState<KorbanCardData | null>(null)
+  const [keterjaminanData, setKeterjaminanData] = useState<KeterjaminanCardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -610,15 +809,19 @@ export default function DashboardPage() {
         setTotalLaporan(listRes.data.meta?.total ?? 0)
 
         // Fetch optional stats in parallel
-        const [statusRes, breakdownRes, jenisLakaRes] = await Promise.all([
+        const [statusRes, breakdownRes, jenisLakaRes, korbanRes, keterjaminanRes] = await Promise.all([
           laporanApi.statusLp().catch(() => null),
           laporanApi.breakdownTerlambat().catch(() => null),
-          laporanApi.jenisLaka().catch(() => null)
+          laporanApi.jenisLaka().catch(() => null),
+          laporanApi.statistikKorban().catch(() => null),
+          laporanApi.statistikKeterjaminan().catch(() => null)
         ])
 
         if (statusRes) setStatusLpData(statusRes.data.data)
         if (breakdownRes) setBreakdownData(breakdownRes.data.data)
         if (jenisLakaRes) setJenisLakaData(jenisLakaRes.data.data)
+        if (korbanRes) setKorbanData(korbanRes.data.data)
+        if (keterjaminanRes) setKeterjaminanData(keterjaminanRes.data.data)
       } catch (err) {
         setError('Gagal memuat data dari server.')
       } finally {
@@ -655,6 +858,6 @@ export default function DashboardPage() {
   const wilayahNama = user?.wilayah?.nama ?? ''
 
   return isAdmin
-    ? <AdminDashboard laporan={laporan} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
-    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} />
+    ? <AdminDashboard laporan={laporan} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
+    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
 }

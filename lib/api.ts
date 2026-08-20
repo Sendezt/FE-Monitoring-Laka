@@ -138,6 +138,22 @@ export interface CreateLaporanPayload {
   korban: Omit<Korban, 'id' | 'kendaraan_id' | 'profesi' | 'cidera'>[]
 }
 
+export interface KeterjaminanItem {
+  id: number
+  nama: string
+  total: number
+  persentase: string
+}
+
+export interface KeterjaminanCardData {
+  total_laporan: number
+  rincian_keterjaminan: KeterjaminanItem[]
+  tanpa_keterjaminan: {
+    total: number
+    persentase: string
+  }
+}
+
 export const laporanApi = {
   list: (params?: { page?: number; limit?: number }) =>
     api.get<PaginatedResponse<LaporanPolisi>>('/api/laporan-polisi', { params }),
@@ -174,6 +190,14 @@ export const laporanApi = {
       persentase: string
     }
   }>>('/api/laporan-polisi/statistik/jenis-laka'),
+  statistikKorban: () => api.get<ApiResponse<{
+    total_korban: number
+    cidera_LL: { total: number; persentase: string }
+    cidera_LL_MD: { total: number; persentase: string }
+    cidera_MD: { total: number; persentase: string }
+  }>>('/api/laporan-polisi/statistik/korban'),
+  statistikKeterjaminan: () =>
+    api.get<ApiResponse<KeterjaminanCardData>>('/api/laporan-polisi/statistik/keterjaminan'),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
@@ -237,7 +261,7 @@ const masterCrud = (baseUrl: string) => ({
 })
 
 export const masterApi = {
-  wilayah:        masterCrud('/api/wilayah'),
+  wilayah: masterCrud('/api/wilayah'),
   polres: {
     ...masterCrud('/api/polres'),
     listByWilayah: (wilayahId: number, params?: Record<string, unknown>) =>
@@ -248,20 +272,22 @@ export const masterApi = {
     listByPolres: (polresId: number, params?: Record<string, unknown>) =>
       api.get<ApiResponse<MasterItem[]>>(`/api/kecamatan/polres/${polresId}`, { params: withPaging(params ?? {}) }),
   },
-  kelurahan:      (kecamatan_id?: number, params?: Record<string, unknown>) =>
-    api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', { params: withPaging({
-      ...(kecamatan_id ? { kecamatan_id } : {}),
-      ...(params ?? {}),
-    }) }),
-  kelurahanCrud:  masterCrud('/api/kelurahan'),
-  rumahsakit:     masterCrud('/api/rumahsakit'),
-  profesi:        masterCrud('/api/profesi'),
-  tindakLanjut:   masterCrud('/api/tindak-lanjut'),
-  cidera:         masterCrud('/api/cidera'),
-  keterjaminan:   masterCrud('/api/keterjaminan'),
-  sifatLaka:      masterCrud('/api/sifat-laka'),
+  kelurahan: (kecamatan_id?: number, params?: Record<string, unknown>) =>
+    api.get<ApiResponse<MasterItem[]>>('/api/kelurahan', {
+      params: withPaging({
+        ...(kecamatan_id ? { kecamatan_id } : {}),
+        ...(params ?? {}),
+      })
+    }),
+  kelurahanCrud: masterCrud('/api/kelurahan'),
+  rumahsakit: masterCrud('/api/rumahsakit'),
+  profesi: masterCrud('/api/profesi'),
+  tindakLanjut: masterCrud('/api/tindak-lanjut'),
+  cidera: masterCrud('/api/cidera'),
+  keterjaminan: masterCrud('/api/keterjaminan'),
+  sifatLaka: masterCrud('/api/sifat-laka'),
   jenisKendaraan: masterCrud('/api/jenis-kendaraan'),
-  kasusTabrak:    masterCrud('/api/kasus-tabrak-kecelakaan'),
+  kasusTabrak: masterCrud('/api/kasus-tabrak-kecelakaan'),
   faktorPenyebab: masterCrud('/api/faktor-penyebab-laka'),
-  jenisJaminan:   masterCrud('/api/jenis-jaminan'),
+  jenisJaminan: masterCrud('/api/jenis-jaminan'),
 }
