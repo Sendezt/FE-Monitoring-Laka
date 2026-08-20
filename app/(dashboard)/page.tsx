@@ -5,13 +5,20 @@ import Link from 'next/link'
 import {
   FilePlus2, ClipboardList, CalendarDays, HeartPulse,
   Loader2, TrendingUp, AlertCircle, ShieldCheck, ShieldAlert, ShieldQuestion,
-  BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart
+  BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart,
+  Users, Car
 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
-import { laporanApi, type LaporanPolisi, type KeterjaminanCardData } from '@/lib/api'
+import { laporanApi, chartApi, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
-
+import type {
+  KasusTabrakData,
+  ProfesiKorbanData,
+  JenisKendaraanKorbanData,
+  TopKecamatanLakaItem,
+  TopRumahSakitKorbanItem,
+} from '@/lib/api'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a78bfa', '#ddd6fe']
 
@@ -37,6 +44,72 @@ function MonthlyBarChart({ data }: { data: { name: string; count: number }[] }) 
     </ResponsiveContainer>
   ) : (
     <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">Belum ada data</div>
+  )
+}
+
+function LoketAxisTick(props: any) {
+  const { x, y, payload } = props
+  const label: string = payload?.value ?? ''
+  const truncated = label.length > 16 ? `${label.slice(0, 16)}…` : label
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={8}
+        textAnchor="end"
+        transform="rotate(-35)"
+        fontSize={10}
+        className="fill-muted-foreground"
+      >
+        {truncated}
+      </text>
+    </g>
+  )
+}
+
+function PerLoketBarChart({
+  data,
+  color,
+  labelColor,
+  unitLabel,
+}: {
+  data: { name: string; value: number }[] | null
+  color: string
+  labelColor: string
+  unitLabel: string
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 56 }} barSize={24}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="name"
+          interval={0}
+          height={64}
+          tickLine={false}
+          axisLine={false}
+          tick={<LoketAxisTick />}
+        />
+        <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} allowDecimals={false} axisLine={false} tickLine={false} />
+        <Tooltip
+          formatter={(v: number) => [`${v} ${unitLabel}`, 'Total']}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]}>
+          <LabelList dataKey="value" position="insideTop" fontSize={10} fontWeight="bold" fill={labelColor} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   )
 }
 
@@ -222,18 +295,245 @@ const renderPieLabel = (props: any) => {
   )
 }
 
+/* ─── Row 6 & 7 chart components ──────────────────────────────────────────── */
+
+function VerticalDetailBarChart({
+  data,
+  color = '#6366f1',
+  labelColor = '#ffffff',
+  unitLabel = 'laporan',
+}: {
+  data: { name: string; value: number; percentage?: string }[] | null
+  color?: string
+  labelColor?: string
+  unitLabel?: string
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[240px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 56 }} barSize={24}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="name"
+          interval={0}
+          height={64}
+          tickLine={false}
+          axisLine={false}
+          tick={<LoketAxisTick />}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip
+          formatter={(value: number, name: string, props: any) => {
+            const pct = props.payload?.percentage
+            return [`${value} ${unitLabel}${pct ? ` (${pct})` : ''}`, 'Total']
+          }}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]}>
+          <LabelList dataKey="value" position="insideTop" fontSize={10} fontWeight="bold" fill={labelColor} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+function HorizontalDetailBarChart({
+  data,
+  color = '#8b5cf6',
+  unitLabel = 'orang',
+}: {
+  data: { name: string; value: number; percentage?: string }[] | null
+  color?: string
+  unitLabel?: string
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[240px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  // Urutkan dari nilai tertinggi ke terendah
+  const sorted = [...data].sort((a, b) => b.value - a.value)
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart
+        data={sorted}
+        layout="vertical"
+        margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
+        barSize={16}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+          axisLine={false}
+          tickLine={false}
+          width={80}
+        />
+        <Tooltip
+          formatter={(value: number, name: string, props: any) => {
+            const pct = props.payload?.percentage
+            return [`${value} ${unitLabel}${pct ? ` (${pct})` : ''}`, 'Total']
+          }}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill={color} radius={[0, 5, 5, 0]}>
+          <LabelList dataKey="value" position="right" fontSize={10} fontWeight="bold" fill="var(--foreground)" />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+function TopKecamatanBarChart({
+  data,
+}: {
+  data: { name: string; value: number }[] | null
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 80 }} barSize={20}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey="name"
+          interval={0}
+          height={80}
+          tickLine={false}
+          axisLine={false}
+          tick={<LoketAxisTick />}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip
+          formatter={(value: number) => [`${value} laka`, 'Total']}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill="#f59e0b" radius={[5, 5, 0, 0]}>
+          <LabelList dataKey="value" position="insideTop" fontSize={10} fontWeight="bold" fill="#ffffff" />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+function TopRumahSakitBarChart({
+  data,
+}: {
+  data: { name: string; value: number }[] | null
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[300px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  const sorted = [...data].sort((a, b) => b.value - a.value)
+
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart
+        data={sorted}
+        layout="vertical"
+        margin={{ top: 8, right: 24, left: 120, bottom: 8 }}
+        barSize={14}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+          axisLine={false}
+          tickLine={false}
+          width={120}
+        />
+        <Tooltip
+          formatter={(value: number) => [`${value} korban`, 'Total']}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill="#3b82f6" radius={[0, 5, 5, 0]}>
+          <LabelList dataKey="value" position="right" fontSize={10} fontWeight="bold" fill="var(--foreground)" />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+/* ─── LakaMonitoringCards ──────────────────────────────────────────────────── */
+
 function LakaMonitoringCards({
   statusData,
   breakdownData,
   jenisLakaData,
   korbanData,
   keterjaminanData,
+  lakaPerLoketData,
+  korbanPerLoketData,
+  kasusTabrakData,
+  profesiData,
+  jenisKendaraanData,
+  topKecamatanData,
+  topRumahSakitData,
 }: {
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
   jenisLakaData: JenisLakaCardData | null
   korbanData: KorbanCardData | null
   keterjaminanData: KeterjaminanCardData | null
+  lakaPerLoketData: WilayahLakaItem[] | null
+  korbanPerLoketData: WilayahKorbanItem[] | null
+  kasusTabrakData?: KasusTabrakData | null
+  profesiData?: ProfesiKorbanData | null
+  jenisKendaraanData?: JenisKendaraanKorbanData | null
+  topKecamatanData?: TopKecamatanLakaItem[] | null
+  topRumahSakitData?: TopRumahSakitKorbanItem[] | null
 }) {
   const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
   const displayPersen = (p?: string) => {
@@ -290,6 +590,46 @@ function LakaMonitoringCards({
   const filteredKorbanData = korbanChartData.filter(d => d.value > 0)
   const hasKorbanData = filteredKorbanData.length > 0
 
+  const lakaPerLoketChartData = lakaPerLoketData
+    ? lakaPerLoketData.map((d) => ({ name: d.nama, value: d.total_laka }))
+    : null
+
+  const korbanPerLoketChartData = korbanPerLoketData
+    ? korbanPerLoketData.map((d) => ({ name: d.nama, value: d.total_korban }))
+    : null
+
+  const kasusChartData = kasusTabrakData?.rincian_kasus?.map(item => ({
+    name: item.nama,
+    value: item.total,
+    percentage: item.persentase,
+  })) ?? null
+
+  const profesiChartData = profesiData?.rincian_profesi?.map(item => ({
+    name: item.nama,
+    value: item.total,
+    percentage: item.persentase,
+  })) ?? null
+
+  const kendaraanChartData = jenisKendaraanData?.rincian_jenis_kendaraan?.map(item => ({
+    name: item.nama,
+    value: item.total,
+    percentage: item.persentase,
+  })) ?? null
+
+  const topKecamatanChartData = topKecamatanData
+    ? topKecamatanData.map((item) => ({
+      name: item.nama_kecamatan,
+      value: item.total_laka,
+    }))
+    : null
+
+  const topRumahSakitChartData = topRumahSakitData
+    ? topRumahSakitData.map((item) => ({
+      name: item.nama_rumah_sakit,
+      value: item.total_korban,
+    }))
+    : null
+
   return (
     <>
       <div className="grid gap-6 md:grid-cols-2 mt-6">
@@ -311,7 +651,6 @@ function LakaMonitoringCards({
           </div>
 
           <div className="grid grid-cols-2 gap-4 mt-auto">
-            {/* Normal */}
             <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">NORMAL</span>
@@ -330,7 +669,6 @@ function LakaMonitoringCards({
               </div>
             </div>
 
-            {/* Terlambat */}
             <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 tracking-wider">TERLAMBAT</span>
@@ -362,7 +700,6 @@ function LakaMonitoringCards({
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-4">
-              {/* Donut Chart */}
               <div className="relative flex items-center justify-center size-[140px] shrink-0 mx-auto sm:mx-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -393,9 +730,7 @@ function LakaMonitoringCards({
                 </div>
               </div>
 
-              {/* Breakdown List */}
               <div className="flex-1 w-full space-y-2">
-                {/* 1-3 HARI */}
                 <div className="bg-orange-50/50 dark:bg-orange-950/10 border border-orange-100/50 dark:border-orange-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-[#f97316] shrink-0" />
@@ -411,7 +746,6 @@ function LakaMonitoringCards({
                   </div>
                 </div>
 
-                {/* 4-7 HARI */}
                 <div className="bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100/50 dark:border-rose-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-[#e11d48] shrink-0" />
@@ -427,7 +761,6 @@ function LakaMonitoringCards({
                   </div>
                 </div>
 
-                {/* >7 HARI */}
                 <div className="bg-pink-50/50 dark:bg-pink-950/10 border border-pink-100/50 dark:border-pink-900/20 rounded-xl px-4 py-2 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-[#db2777] shrink-0" />
@@ -449,7 +782,6 @@ function LakaMonitoringCards({
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mt-6">
-        {/* CARD 3: LAKA TUNGGAL */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-4">LAKA TUNGGAL</span>
@@ -470,7 +802,6 @@ function LakaMonitoringCards({
           </div>
         </div>
 
-        {/* CARD 4: LAKA NON-TUNGGAL */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-4">LAKA NON-TUNGGAL</span>
@@ -492,7 +823,6 @@ function LakaMonitoringCards({
         </div>
       </div>
 
-      {/* ROW 3: KORBAN */}
       <div className="grid gap-6 md:grid-cols-1 mt-6">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div className="flex items-center justify-between">
@@ -510,7 +840,6 @@ function LakaMonitoringCards({
           </div>
 
           <div className="grid grid-cols-3 gap-4 mt-auto">
-            {/* Cidera LL */}
             <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 tracking-wider">LL</span>
@@ -529,7 +858,6 @@ function LakaMonitoringCards({
               </div>
             </div>
 
-            {/* Cidera LL + MD */}
             <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 tracking-wider">LL - MD</span>
@@ -548,7 +876,6 @@ function LakaMonitoringCards({
               </div>
             </div>
 
-            {/* Cidera MD */}
             <div className="bg-muted/30 rounded-2xl p-4 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 tracking-wider">MD</span>
@@ -572,9 +899,7 @@ function LakaMonitoringCards({
 
       <KeterjaminanCards data={keterjaminanData} />
 
-      {/* ROW 4: VISUAL BREAKDOWN CHARTS */}
       <div className="grid gap-6 md:grid-cols-2 mt-6">
-        {/* TERJAMIN & TIDAK TERJAMIN CHART */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -617,7 +942,6 @@ function LakaMonitoringCards({
           </div>
         </div>
 
-        {/* SIFAT CIDERA CHART */}
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -653,7 +977,6 @@ function LakaMonitoringCards({
                     </PieChart>
                   </ResponsiveContainer>
 
-                  {/* Center Injured Person Icon */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                     <div className="flex items-center justify-center bg-slate-100 dark:bg-slate-850 rounded-full p-2 border border-slate-200/50 dark:border-slate-700/50">
                       <svg className="w-8 h-8 text-slate-700 dark:text-slate-350" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -674,6 +997,133 @@ function LakaMonitoringCards({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 5: STATISTIK PER LOKET */}
+      <div className="grid gap-6 lg:grid-cols-2 mt-6">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Laka per Loket
+            </span>
+            <div className="flex items-center justify-center bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl p-2 shrink-0">
+              <BarChart2 size={20} />
+            </div>
+          </div>
+          <PerLoketBarChart
+            data={lakaPerLoketChartData}
+            color="#eab308"
+            labelColor="#1e293b"
+            unitLabel="laka"
+          />
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Korban per Loket
+            </span>
+            <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl p-2 shrink-0">
+              <HeartPulse size={20} />
+            </div>
+          </div>
+          <PerLoketBarChart
+            data={korbanPerLoketChartData}
+            color="#3b82f6"
+            labelColor="#ffffff"
+            unitLabel="orang"
+          />
+        </div>
+      </div>
+
+      {/* ROW 6: STATISTIK DETAIL KECELAKAAN */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            ROW 6: STATISTIK DETAIL KECELAKAAN
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Jenis Laka</span>
+              <div className="flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl p-2 shrink-0">
+                <BarChart2 size={18} />
+              </div>
+            </div>
+            <VerticalDetailBarChart
+              data={kasusChartData}
+              color="#6366f1"
+              labelColor="#ffffff"
+              unitLabel="laporan"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Profesi</span>
+              <div className="flex items-center justify-center bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl p-2 shrink-0">
+                <Users size={18} />
+              </div>
+            </div>
+            <HorizontalDetailBarChart
+              data={profesiChartData}
+              color="#8b5cf6"
+              unitLabel="orang"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Jenis Kendaraan</span>
+              <div className="flex items-center justify-center bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-100 dark:border-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-xl p-2 shrink-0">
+                <Car size={18} />
+              </div>
+            </div>
+            <VerticalDetailBarChart
+              data={kendaraanChartData}
+              color="#06b6d4"
+              labelColor="#ffffff"
+              unitLabel="orang"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ROW 7: TOP WILAYAH DAN RUMAH SAKIT */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            ROW 7: TOP WILAYAH DAN RUMAH SAKIT
+          </span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                20 Kecamatan dengan Laka Tertinggi
+              </span>
+              <div className="flex items-center justify-center bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl p-2 shrink-0">
+                <MapPin size={18} />
+              </div>
+            </div>
+            <TopKecamatanBarChart data={topKecamatanChartData} />
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                RS Korban Dirawat
+              </span>
+              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl p-2 shrink-0">
+                <HeartPulse size={18} />
+              </div>
+            </div>
+            <TopRumahSakitBarChart data={topRumahSakitChartData} />
           </div>
         </div>
       </div>
@@ -779,7 +1229,8 @@ function KeterjaminanCards({ data }: { data: KeterjaminanCardData | null }) {
   )
 }
 
-/* ─── Admin Dashboard ─── */
+/* ─── Admin Dashboard ──────────────────────────────────────────────────────── */
+
 function AdminDashboard({
   laporan,
   total,
@@ -787,7 +1238,14 @@ function AdminDashboard({
   breakdownData,
   jenisLakaData,
   korbanData,
-  keterjaminanData
+  keterjaminanData,
+  lakaPerLoketData,
+  korbanPerLoketData,
+  kasusTabrakData,
+  profesiData,
+  jenisKendaraanData,
+  topKecamatanData,
+  topRumahSakitData,
 }: {
   laporan: LaporanPolisi[]
   total: number
@@ -796,6 +1254,13 @@ function AdminDashboard({
   jenisLakaData: JenisLakaCardData | null
   korbanData: KorbanCardData | null
   keterjaminanData: KeterjaminanCardData | null
+  lakaPerLoketData: WilayahLakaItem[] | null
+  korbanPerLoketData: WilayahKorbanItem[] | null
+  kasusTabrakData?: KasusTabrakData | null
+  profesiData?: ProfesiKorbanData | null
+  jenisKendaraanData?: JenisKendaraanKorbanData | null
+  topKecamatanData?: TopKecamatanLakaItem[] | null
+  topRumahSakitData?: TopRumahSakitKorbanItem[] | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -832,14 +1297,20 @@ function AdminDashboard({
         action={<Button href="/laporan-polisi/tambah"><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
-      {/* <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Laporan" value={String(total)} note="Seluruh data laporan" tone="success" icon={ClipboardList} />
-        <StatCard label="Bulan Ini" value={String(bulanIni)} note={new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} icon={CalendarDays} />
-        <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
-        <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
-      </div> */}
-
-      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
+      <LakaMonitoringCards
+        statusData={statusData}
+        breakdownData={breakdownData}
+        jenisLakaData={jenisLakaData}
+        korbanData={korbanData}
+        keterjaminanData={keterjaminanData}
+        lakaPerLoketData={lakaPerLoketData}
+        korbanPerLoketData={korbanPerLoketData}
+        kasusTabrakData={kasusTabrakData}
+        profesiData={profesiData}
+        jenisKendaraanData={jenisKendaraanData}
+        topKecamatanData={topKecamatanData}
+        topRumahSakitData={topRumahSakitData}
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -904,7 +1375,8 @@ function AdminDashboard({
   )
 }
 
-/* ─── User Dashboard ─── */
+/* ─── User Dashboard ───────────────────────────────────────────────────────── */
+
 function UserDashboard({
   laporan,
   wilayahNama,
@@ -913,7 +1385,14 @@ function UserDashboard({
   breakdownData,
   jenisLakaData,
   korbanData,
-  keterjaminanData
+  keterjaminanData,
+  lakaPerLoketData,
+  korbanPerLoketData,
+  kasusTabrakData,
+  profesiData,
+  jenisKendaraanData,
+  topKecamatanData,
+  topRumahSakitData,
 }: {
   laporan: LaporanPolisi[]
   wilayahNama: string
@@ -923,6 +1402,13 @@ function UserDashboard({
   jenisLakaData: JenisLakaCardData | null
   korbanData: KorbanCardData | null
   keterjaminanData: KeterjaminanCardData | null
+  lakaPerLoketData: WilayahLakaItem[] | null
+  korbanPerLoketData: WilayahKorbanItem[] | null
+  kasusTabrakData?: KasusTabrakData | null
+  profesiData?: ProfesiKorbanData | null
+  jenisKendaraanData?: JenisKendaraanKorbanData | null
+  topKecamatanData?: TopKecamatanLakaItem[] | null
+  topRumahSakitData?: TopRumahSakitKorbanItem[] | null
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
@@ -949,14 +1435,20 @@ function UserDashboard({
         action={<Button href="/laporan-polisi/tambah"><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
-      {/* <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Laporan" value={String(total)} note="Di wilayah Anda" tone="success" icon={ClipboardList} />
-        <StatCard label="Bulan Ini" value={String(bulanIni)} note={new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} icon={CalendarDays} />
-        <StatCard label="Laka Tunggal" value={String(lakaTunggal)} note={`${total > 0 ? Math.round((lakaTunggal / total) * 100) : 0}% dari total`} tone="danger" icon={TrendingUp} />
-        <StatCard label="Total Korban" value={String(totalKorban)} note="Dari seluruh laporan" icon={HeartPulse} />
-      </div> */}
-
-      <LakaMonitoringCards statusData={statusData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
+      <LakaMonitoringCards
+        statusData={statusData}
+        breakdownData={breakdownData}
+        jenisLakaData={jenisLakaData}
+        korbanData={korbanData}
+        keterjaminanData={keterjaminanData}
+        lakaPerLoketData={lakaPerLoketData}
+        korbanPerLoketData={korbanPerLoketData}
+        kasusTabrakData={kasusTabrakData}
+        profesiData={profesiData}
+        jenisKendaraanData={jenisKendaraanData}
+        topKecamatanData={topKecamatanData}
+        topRumahSakitData={topRumahSakitData}
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
@@ -998,7 +1490,8 @@ function UserDashboard({
   )
 }
 
-/* ─── Main ─── */
+/* ─── Main ──────────────────────────────────────────────────────────────────── */
+
 export default function DashboardPage() {
   const { user, init } = useAuthStore()
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
@@ -1008,6 +1501,13 @@ export default function DashboardPage() {
   const [jenisLakaData, setJenisLakaData] = useState<JenisLakaCardData | null>(null)
   const [korbanData, setKorbanData] = useState<KorbanCardData | null>(null)
   const [keterjaminanData, setKeterjaminanData] = useState<KeterjaminanCardData | null>(null)
+  const [lakaPerLoketData, setLakaPerLoketData] = useState<WilayahLakaItem[] | null>(null)
+  const [korbanPerLoketData, setKorbanPerLoketData] = useState<WilayahKorbanItem[] | null>(null)
+  const [kasusTabrakData, setKasusTabrakData] = useState<KasusTabrakData | null>(null)
+  const [profesiData, setProfesiData] = useState<ProfesiKorbanData | null>(null)
+  const [jenisKendaraanData, setJenisKendaraanData] = useState<JenisKendaraanKorbanData | null>(null)
+  const [topKecamatanData, setTopKecamatanData] = useState<TopKecamatanLakaItem[] | null>(null)
+  const [topRumahSakitData, setTopRumahSakitData] = useState<TopRumahSakitKorbanItem[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -1018,18 +1518,36 @@ export default function DashboardPage() {
       try {
         setLoading(true)
 
-        // Fetch required list
         const listRes = await laporanApi.list({ page: 1, limit: 1000 })
         setLaporan(listRes.data.data || [])
         setTotalLaporan(listRes.data.meta?.total ?? 0)
 
-        // Fetch optional stats in parallel
-        const [statusRes, breakdownRes, jenisLakaRes, korbanRes, keterjaminanRes] = await Promise.all([
+        const [
+          statusRes,
+          breakdownRes,
+          jenisLakaRes,
+          korbanRes,
+          keterjaminanRes,
+          lakaPerLoketRes,
+          korbanPerLoketRes,
+          kasusTabrakRes,
+          profesiRes,
+          jenisKendaraanRes,
+          topKecamatanRes,
+          topRumahSakitRes,
+        ] = await Promise.all([
           laporanApi.statusLp().catch(() => null),
           laporanApi.breakdownTerlambat().catch(() => null),
           laporanApi.jenisLaka().catch(() => null),
           laporanApi.statistikKorban().catch(() => null),
-          laporanApi.statistikKeterjaminan().catch(() => null)
+          laporanApi.statistikKeterjaminan().catch(() => null),
+          chartApi.totalLakaPerWilayah().catch(() => null),
+          chartApi.totalKorbanPerWilayah().catch(() => null),
+          chartApi.kasusTabrak().catch(() => null),
+          chartApi.korbanPerProfesi().catch(() => null),
+          chartApi.korbanPerJenisKendaraan().catch(() => null),
+          chartApi.topKecamatanLaka().catch(() => null),
+          chartApi.topRumahSakitKorban().catch(() => null),
         ])
 
         if (statusRes) setStatusLpData(statusRes.data.data)
@@ -1037,6 +1555,13 @@ export default function DashboardPage() {
         if (jenisLakaRes) setJenisLakaData(jenisLakaRes.data.data)
         if (korbanRes) setKorbanData(korbanRes.data.data)
         if (keterjaminanRes) setKeterjaminanData(keterjaminanRes.data.data)
+        if (lakaPerLoketRes) setLakaPerLoketData(lakaPerLoketRes.data.data.data_wilayah)
+        if (korbanPerLoketRes) setKorbanPerLoketData(korbanPerLoketRes.data.data.data_wilayah)
+        if (kasusTabrakRes) setKasusTabrakData(kasusTabrakRes.data.data)
+        if (profesiRes) setProfesiData(profesiRes.data.data)
+        if (jenisKendaraanRes) setJenisKendaraanData(jenisKendaraanRes.data.data)
+        if (topKecamatanRes) setTopKecamatanData(topKecamatanRes.data.data)
+        if (topRumahSakitRes) setTopRumahSakitData(topRumahSakitRes.data.data)
       } catch (err) {
         setError('Gagal memuat data dari server.')
       } finally {
@@ -1073,6 +1598,37 @@ export default function DashboardPage() {
   const wilayahNama = user?.wilayah?.nama ?? ''
 
   return isAdmin
-    ? <AdminDashboard laporan={laporan} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
-    : <UserDashboard laporan={laporan} wilayahNama={wilayahNama} total={totalLaporan} statusData={statusLpData} breakdownData={breakdownData} jenisLakaData={jenisLakaData} korbanData={korbanData} keterjaminanData={keterjaminanData} />
+    ? <AdminDashboard
+      laporan={laporan}
+      total={totalLaporan}
+      statusData={statusLpData}
+      breakdownData={breakdownData}
+      jenisLakaData={jenisLakaData}
+      korbanData={korbanData}
+      keterjaminanData={keterjaminanData}
+      lakaPerLoketData={lakaPerLoketData}
+      korbanPerLoketData={korbanPerLoketData}
+      kasusTabrakData={kasusTabrakData}
+      profesiData={profesiData}
+      jenisKendaraanData={jenisKendaraanData}
+      topKecamatanData={topKecamatanData}
+      topRumahSakitData={topRumahSakitData}
+    />
+    : <UserDashboard
+      laporan={laporan}
+      wilayahNama={wilayahNama}
+      total={totalLaporan}
+      statusData={statusLpData}
+      breakdownData={breakdownData}
+      jenisLakaData={jenisLakaData}
+      korbanData={korbanData}
+      keterjaminanData={keterjaminanData}
+      lakaPerLoketData={lakaPerLoketData}
+      korbanPerLoketData={korbanPerLoketData}
+      kasusTabrakData={kasusTabrakData}
+      profesiData={profesiData}
+      jenisKendaraanData={jenisKendaraanData}
+      topKecamatanData={topKecamatanData}
+      topRumahSakitData={topRumahSakitData}
+    />
 }

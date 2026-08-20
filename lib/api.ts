@@ -200,6 +200,98 @@ export const laporanApi = {
     api.get<ApiResponse<KeterjaminanCardData>>('/api/laporan-polisi/statistik/keterjaminan'),
 }
 
+// ─── Chart / Statistik per Wilayah (Loket) ────────────────────────────────────
+
+export interface WilayahLakaItem {
+  id: number
+  nama: string
+  total_laka: number
+}
+
+export interface TotalLakaPerWilayahData {
+  total_keseluruhan: number
+  data_wilayah: WilayahLakaItem[]
+}
+
+export interface WilayahKorbanItem {
+  id: number
+  nama: string
+  total_korban: number
+}
+
+export interface KasusTabrakItem {
+  id: number
+  nama: string
+  total: number
+  persentase: string
+}
+
+export interface KasusTabrakData {
+  total_laporan: number
+  rincian_kasus: KasusTabrakItem[]
+  tanpa_kasus: { total: number; persentase: string }
+}
+
+export interface ProfesiKorbanItem {
+  id: number
+  nama: string
+  total: number
+  persentase: string
+}
+
+export interface ProfesiKorbanData {
+  total_korban: number
+  rincian_profesi: ProfesiKorbanItem[]
+  tanpa_profesi: { total: number; persentase: string }
+}
+
+export interface JenisKendaraanKorbanItem {
+  id: number
+  nama: string
+  total: number
+  persentase: string
+}
+
+export interface JenisKendaraanKorbanData {
+  total_korban: number
+  rincian_jenis_kendaraan: JenisKendaraanKorbanItem[]
+  tanpa_kendaraan: { total: number; persentase: string }
+}
+
+export interface TotalKorbanPerWilayahData {
+  total_keseluruhan: number
+  data_wilayah: WilayahKorbanItem[]
+}
+
+export interface TopKecamatanLakaItem {
+  kecamatan_id: number
+  nama_kecamatan: string
+  total_laka: number
+}
+
+export interface TopRumahSakitKorbanItem {
+  rumah_sakit_id: number
+  nama_rumah_sakit: string
+  total_korban: number
+}
+
+export const chartApi = {
+  totalLakaPerWilayah: () =>
+    api.get<ApiResponse<TotalLakaPerWilayahData>>('/api/chart/statistik/total-laka-per-wilayah'),
+  totalKorbanPerWilayah: () =>
+    api.get<ApiResponse<TotalKorbanPerWilayahData>>('/api/chart/statistik/total-korban-per-wilayah'),
+  kasusTabrak: () =>
+    api.get<ApiResponse<KasusTabrakData>>('/api/chart/statistik/kasus-tabrak'),
+  korbanPerProfesi: () =>
+    api.get<ApiResponse<ProfesiKorbanData>>('/api/chart/statistik/korban-per-profesi'),
+  korbanPerJenisKendaraan: () =>
+    api.get<ApiResponse<JenisKendaraanKorbanData>>('/api/chart/statistik/korban-per-jenis-kendaraan'),
+  topKecamatanLaka: () =>
+    api.get<ApiResponse<TopKecamatanLakaItem[]>>('/api/chart/statistik/top-20-kecamatan-laka'),
+  topRumahSakitKorban: () =>
+    api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban'),
+}
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 export interface User {
