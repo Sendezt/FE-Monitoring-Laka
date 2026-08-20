@@ -153,6 +153,75 @@ interface KorbanCardData {
   cidera_MD: { total: number; persentase: string }
 }
 
+const renderPieLabel = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, value, name, color } = props
+  if (value === 0 || name === 'Tidak ada data') return null
+
+  const RADIAN = Math.PI / 180
+  const sin = Math.sin(-RADIAN * midAngle)
+  const cos = Math.cos(-RADIAN * midAngle)
+
+  const sx = cx + outerRadius * cos
+  const sy = cy + outerRadius * sin
+  const mx = cx + (outerRadius + 12) * cos
+  const my = cy + (outerRadius + 12) * sin
+  const ex = mx + (cos >= 0 ? 1 : -1) * 28
+  const ey = my
+
+  const textAnchor = cos >= 0 ? 'start' : 'end'
+  const percentageStr = `${(percent * 100).toFixed(1)}%`.replace('.', ',')
+  const displayName = name.length > 10 ? name.slice(0, 10) + '...' : name
+
+  const rInside = innerRadius + (outerRadius - innerRadius) * 0.5
+  const ix = cx + rInside * cos
+  const iy = cy + rInside * sin
+
+  const itemColor = color || props.payload?.color || ''
+  const isLight = ['#00ff00', '#00e676', '#ef9a9a', '#ffc107', '#e2e8f0'].includes(itemColor.toLowerCase())
+  const textInsideColor = isLight ? '#0f172a' : '#ffffff'
+
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke="#94a3b8" fill="none" strokeWidth={1} />
+      <circle cx={sx} cy={sy} r={2} fill="#94a3b8" />
+      <text
+        x={ex + (cos >= 0 ? 4 : -4)}
+        y={ey - 4}
+        textAnchor={textAnchor}
+        fontSize={10}
+        fontWeight="bold"
+        className="fill-slate-700 dark:fill-slate-300 tracking-wider"
+      >
+        {displayName.toUpperCase()}
+      </text>
+      <text
+        x={ex + (cos >= 0 ? 4 : -4)}
+        y={ey + 11}
+        textAnchor={textAnchor}
+        fontSize={9}
+        fontWeight="600"
+        className="fill-slate-400 dark:fill-slate-500"
+      >
+        {percentageStr}
+      </text>
+      {value > 0 && (
+        <text
+          x={ix}
+          y={iy}
+          fill={textInsideColor}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={10}
+          fontWeight="bold"
+          className="select-none pointer-events-none"
+        >
+          {value}
+        </text>
+      )}
+    </g>
+  )
+}
+
 function LakaMonitoringCards({
   statusData,
   breakdownData,
@@ -181,6 +250,45 @@ function LakaMonitoringCards({
 
   const hasData = chartData.length > 0
   const finalChartData = hasData ? chartData : [{ name: 'Tidak ada data', value: 1, color: '#e2e8f0' }]
+
+  const keterjaminanChartData = (keterjaminanData?.rincian_keterjaminan || []).map((item) => {
+    let color = '#94a3b8'
+    const namaLower = item.nama.toLowerCase()
+    if (namaLower === 'terjamin') {
+      color = '#10b981'
+    } else if (namaLower === 'eg2r') {
+      color = '#ef4444'
+    } else if (namaLower === 'tidak terjamin') {
+      color = '#fca5a5'
+    }
+    return {
+      name: item.nama,
+      value: item.total,
+      color,
+    }
+  })
+  const filteredKeterjaminanData = keterjaminanChartData.filter(d => d.value > 0)
+  const hasKeterjaminanData = filteredKeterjaminanData.length > 0
+
+  const korbanChartData = [
+    {
+      name: 'LL',
+      value: korbanData?.cidera_LL?.total ?? 0,
+      color: '#3b82f6',
+    },
+    {
+      name: 'LL - MD',
+      value: korbanData?.cidera_LL_MD?.total ?? 0,
+      color: '#fbbf24',
+    },
+    {
+      name: 'MD',
+      value: korbanData?.cidera_MD?.total ?? 0,
+      color: '#f43f5e',
+    },
+  ]
+  const filteredKorbanData = korbanChartData.filter(d => d.value > 0)
+  const hasKorbanData = filteredKorbanData.length > 0
 
   return (
     <>
@@ -244,7 +352,7 @@ function LakaMonitoringCards({
         </div>
 
         {/* CARD 2: DISTRIBUSI KETERLAMBATAN */}
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 border-l-[6px] border-l-rose-600 flex flex-col justify-between">
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">LP Terlambat Lapor</span>
@@ -461,7 +569,114 @@ function LakaMonitoringCards({
           </div>
         </div>
       </div>
+
       <KeterjaminanCards data={keterjaminanData} />
+
+      {/* ROW 4: VISUAL BREAKDOWN CHARTS */}
+      <div className="grid gap-6 md:grid-cols-2 mt-6">
+        {/* TERJAMIN & TIDAK TERJAMIN CHART */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                TERJAMIN & TIDAK TERJAMIN
+              </span>
+              <div className="flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl p-2 shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+            </div>
+
+            <div className="h-[240px] w-full flex items-center justify-center">
+              {hasKeterjaminanData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={filteredKeterjaminanData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={60}
+                      dataKey="value"
+                      label={renderPieLabel}
+                      labelLine={false}
+                      stroke="var(--card)"
+                      strokeWidth={2}
+                    >
+                      {filteredKeterjaminanData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  Belum ada data keterjaminan
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* SIFAT CIDERA CHART */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                SIFAT CIDERA
+              </span>
+              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl p-2 shrink-0">
+                <HeartPulse size={20} />
+              </div>
+            </div>
+
+            <div className="relative h-[240px] w-full flex items-center justify-center">
+              {hasKorbanData ? (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={filteredKorbanData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={60}
+                        dataKey="value"
+                        label={renderPieLabel}
+                        labelLine={false}
+                        stroke="var(--card)"
+                        strokeWidth={2}
+                      >
+                        {filteredKorbanData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+
+                  {/* Center Injured Person Icon */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+                    <div className="flex items-center justify-center bg-slate-100 dark:bg-slate-850 rounded-full p-2 border border-slate-200/50 dark:border-slate-700/50">
+                      <svg className="w-8 h-8 text-slate-700 dark:text-slate-350" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="35" r="20" fill="currentColor" opacity="0.9" />
+                        <path d="M30 25 L70 41" stroke="white" strokeWidth="4.5" strokeLinecap="round" />
+                        <path d="M34 19 L66 35" stroke="white" strokeWidth="4.5" strokeLinecap="round" />
+                        <path d="M15 85 C15 65 30 58 50 58 C70 58 85 65 85 85" fill="currentColor" opacity="0.9" />
+                        <path d="M33 71 H41 M37 67 V75" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                        <path d="M59 71 H67 M63 67 V75" stroke="white" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  Belum ada data korban
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   )
 }
