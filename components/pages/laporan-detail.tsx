@@ -1,15 +1,36 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, AlertCircle, MapPin, Car, User, FileText } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle, MapPin, Car, User, FileText, Building2, Hospital, ShieldAlert, Calendar, Clock } from 'lucide-react'
 import { SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, type LaporanPolisi } from '@/lib/api'
+import { laporanApi, masterApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
 import { useRoleBase } from '@/lib/role-base'
 
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-medium text-sm">{value || '-'}</p>
+    </div>
+  )
+}
+
+function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card p-5 shadow-xs">
+      <div className="mb-4 flex items-center gap-2">
+        <Icon size={16} className="text-primary" />
+        <h3 className="font-semibold text-sm">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
 }
 
 export function LaporanDetailPage() {
@@ -18,10 +39,24 @@ export function LaporanDetailPage() {
   const [laporan, setLaporan] = useState<LaporanPolisi | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [mapKasusTabrak, setMapKasusTabrak] = useState<Map<number, string>>(new Map())
+  const [mapFaktorPenyebab, setMapFaktorPenyebab] = useState<Map<number, string>>(new Map())
+  const [mapSifatLaka, setMapSifatLaka] = useState<Map<number, string>>(new Map())
 
   useEffect(() => {
-    laporanApi.get(Number(id))
-      .then((res) => setLaporan(res.data.data))
+    const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
+    Promise.all([
+      laporanApi.get(Number(id)),
+      masterApi.kasusTabrak.list(),
+      masterApi.faktorPenyebab.list(),
+      masterApi.sifatLaka.list(),
+    ])
+      .then(([laporanRes, kasusRes, faktorRes, sifatRes]) => {
+        setLaporan(laporanRes.data.data)
+        setMapKasusTabrak(toMap(kasusRes.data.data))
+        setMapFaktorPenyebab(toMap(faktorRes.data.data))
+        setMapSifatLaka(toMap(sifatRes.data.data))
+      })
       .catch(() => setError('Laporan tidak ditemukan.'))
       .finally(() => setLoading(false))
   }, [id])
@@ -61,7 +96,7 @@ export function LaporanDetailPage() {
       </div>
 
       <div className="space-y-5">
-        {/* Header info */}
+        {/* ── Header ── */}
         <div className="rounded-xl border bg-card p-6 shadow-xs">
           <div className="mb-4 flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -75,86 +110,100 @@ export function LaporanDetailPage() {
               {laporan.laka_tunggal ? 'Laka Tunggal' : 'Multi Pihak'}
             </span>
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 text-sm">
-            {[
-              ['Nomor LP', laporan.no_lp],
-              ['Tanggal Kejadian', formatDate(laporan.tanggal_laka)],
-              ['Hari', laporan.hari_kejadian],
-              ['Tanggal LP', formatDate(laporan.tanggal_lp)],
-              ['Telat LP', `${laporan.telat_lp} hari`],
-              ['Kecamatan', laporan.kecamatan?.nama ?? '-'],
-              ['Kelurahan', laporan.kelurahan?.nama ?? '-'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
-                <p className="mt-0.5 font-medium">{value}</p>
-              </div>
-            ))}
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 text-sm">
+            <Field label="Nomor LP" value={laporan.no_lp} />
+            <Field label="Polres" value={laporan.polres?.nama || '-'} />
+            <Field label="Tanggal Kejadian" value={formatDate(laporan.tanggal_laka)} />
+            <Field label="Hari Kejadian" value={laporan.hari_kejadian} />
+            <Field label="Tanggal LP" value={formatDate(laporan.tanggal_lp)} />
+            <Field label="Telat LP" value={`${laporan.telat_lp} hari`} />
+            <Field label="Laka Tunggal" value={laporan.laka_tunggal ? 'Ya' : 'Tidak'} />
+            <Field label="Created At" value={laporan.created_at ? formatDate(laporan.created_at) : '-'} />
           </div>
         </div>
 
-        {/* Lokasi */}
-        <div className="rounded-xl border bg-card p-5 shadow-xs">
-          <div className="mb-3 flex items-center gap-2">
-            <MapPin size={15} className="text-primary" />
-            <h3 className="font-semibold text-sm">Lokasi Kejadian</h3>
+        {/* ── Lokasi ── */}
+        <Section icon={MapPin} title="Lokasi Kejadian">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+            <Field label="Kecamatan" value={laporan.kecamatan?.nama || '-'} />
+            <Field label="Kelurahan" value={laporan.kelurahan?.nama || '-'} />
+            <Field label="Lokasi Laka" value={laporan.lokasi_laka || '-'} />
           </div>
-          <p className="text-sm text-muted-foreground">{laporan.lokasi_laka}</p>
+        </Section>
+
+        {/* ── Rumah Sakit ── */}
+        <Section icon={Hospital} title="Rumah Sakit">
+          <div className="grid gap-4 sm:grid-cols-2 text-sm">
+            <Field label="RS Wilayah Sendiri" value={laporan.rumah_sakit_wilayah && /sendiri/i.test(laporan.rumah_sakit_wilayah) ? laporan.rumah_sakit_wilayah : '-'} />
+            <Field label="RS Wilayah Lain" value={laporan.rumah_sakit_wilayah && /lain/i.test(laporan.rumah_sakit_wilayah) ? laporan.rumah_sakit_wilayah : (!laporan.rumah_sakit_wilayah || (/sendiri/i.test(laporan.rumah_sakit_wilayah) || /lain/i.test(laporan.rumah_sakit_wilayah)) ? '-' : laporan.rumah_sakit_wilayah)} />
+          </div>
+        </Section>
+
+        {/* ── Klasifikasi ── */}
+        <Section icon={ShieldAlert} title="Klasifikasi Kecelakaan">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+            <Field label="Kasus Tabrakan" value={laporan.kasus_tabrak_kecelakaan_id ? (mapKasusTabrak.get(laporan.kasus_tabrak_kecelakaan_id) || '-') : '-'} />
+            <Field label="Faktor Penyebab" value={laporan.faktor_penyebab_laka_id ? (mapFaktorPenyebab.get(laporan.faktor_penyebab_laka_id) || '-') : '-'} />
+            <Field label="Sifat Laka" value={laporan.sifat_laka_id ? (mapSifatLaka.get(laporan.sifat_laka_id) || '-') : '-'} />
+          </div>
           {laporan.keterangan && (
-            <p className="mt-2 text-xs text-muted-foreground italic">Keterangan: {laporan.keterangan}</p>
-          )}
-        </div>
-
-        {/* Kendaraan */}
-        {laporan.kendaraan && laporan.kendaraan.length > 0 && (
-          <div className="rounded-xl border bg-card p-5 shadow-xs">
-            <div className="mb-3 flex items-center gap-2">
-              <Car size={15} className="text-primary" />
-              <h3 className="font-semibold text-sm">Data Kendaraan ({laporan.kendaraan.length})</h3>
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <Field label="Keterangan" value={laporan.keterangan} />
             </div>
+          )}
+        </Section>
+
+        {/* ── Kendaraan ── */}
+        {laporan.kendaraan && laporan.kendaraan.length > 0 && (
+          <Section icon={Car} title={`Data Kendaraan (${laporan.kendaraan.length})`}>
             <div className="space-y-3">
               {laporan.kendaraan.map((k, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${k.peran === 'korban' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
-                    {k.peran}
-                  </span>
-                  <div className="text-sm">
-                    <p className="font-semibold font-mono">{k.nopol}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {k.jenisKendaraan?.nama ?? `Jenis #${k.jenis_kendaraan_id}`}
-                      {k.masa_laku_sw && ` · Masa Laku SW: ${formatDate(k.masa_laku_sw)}`}
-                    </p>
+                <div key={i} className="rounded-lg border border-border/40 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${k.peran === 'korban' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                      {k.peran === 'korban' ? 'Korban' : 'Penjamin'}
+                    </span>
+                    <span className="font-mono font-semibold text-sm">{k.nopol}</span>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3 text-sm">
+                    <Field label="Jenis Kendaraan" value={k.jenisKendaraan?.nama || '-'} />
+                    <Field label="No. Polisi" value={k.nopol} />
+                    <Field label="Masa Laku SW" value={k.masa_laku_sw ? formatDate(k.masa_laku_sw) : '-'} />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Section>
         )}
 
-        {/* Korban */}
+        {/* ── Korban ── */}
         {laporan.korban && laporan.korban.length > 0 && (
-          <div className="rounded-xl border bg-card p-5 shadow-xs">
-            <div className="mb-3 flex items-center gap-2">
-              <User size={15} className="text-primary" />
-              <h3 className="font-semibold text-sm">Data Korban ({laporan.korban.length})</h3>
-            </div>
-            <div className="space-y-3">
+          <Section icon={User} title={`Data Korban (${laporan.korban.length})`}>
+            <div className="space-y-4">
               {laporan.korban.map((k, i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
-                    {i + 1}
+                <div key={i} className="rounded-lg border border-border/40 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+                      {i + 1}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">{k.nama}</p>
+                      <p className="text-xs text-muted-foreground">{k.usia} tahun</p>
+                    </div>
                   </div>
-                  <div className="text-sm">
-                    <p className="font-semibold">{k.nama}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {k.usia} tahun · {k.profesi?.nama ?? 'Profesi tidak diketahui'} · {k.cidera?.nama ?? 'Cidera tidak diketahui'}
-                    </p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                    <Field label="Nama" value={k.nama} />
+                    <Field label="Usia" value={`${k.usia} tahun`} />
+                    <Field label="Profesi" value={k.profesi?.nama || '-'} />
+                    <Field label="Cidera" value={k.cidera?.nama || '-'} />
+                    <Field label="Tindak Lanjut" value={k.tindakLanjut?.nama || '-'} />
+                    <Field label="Jenis Jaminan" value={k.jenisJaminan?.nama || '-'} />
+                    <Field label="Keterjaminan" value={k.keterjaminan?.nama || '-'} />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </Section>
         )}
       </div>
     </SILakaShell>

@@ -68,6 +68,10 @@ export function LaporanPolisiListPage() {
           />
         </div>
         <span className="text-xs text-muted-foreground">{filtered.length} laporan</span>
+        <Link href={`${base}/laporan-polisi/tambah`} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+          <FilePlus2 size={15} />
+          Tambah Laporan Baru
+        </Link>
       </div>
 
       {/* Table */}

@@ -509,6 +509,67 @@ function TopRumahSakitBarChart({
   )
 }
 
+/* ─── Top 10 Polres dengan Laka Tertinggi (horizontal bar, ungu) ───────────── */
+
+function TopPolresBarChart({
+  data,
+}: {
+  data: { name: string; value: number }[] | null
+}) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[340px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, 10)
+
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart
+        data={sorted}
+        layout="vertical"
+        margin={{ top: 8, right: 48, left: 100, bottom: 8 }}
+        barSize={18}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={false}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)', fontWeight: 600 }}
+          axisLine={false}
+          tickLine={false}
+          width={100}
+          tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 14)}…` : v)}
+        />
+        <Tooltip
+          formatter={(value: number) => [`${value} laka`, 'Total']}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill="#9333ea" radius={[0, 8, 8, 0]}>
+          <LabelList
+            dataKey="value"
+            position="right"
+            fontSize={11}
+            fontWeight="bold"
+            fill="#9333ea"
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 /* ─── Row 8: Trend Line Chart ──────────────────────────────────────────────── */
 
 function TrendLineChart({
@@ -551,17 +612,15 @@ function TrendLineChart({
     )
   }
 
-  // Format bulan singkat Indonesia
-  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGS', 'SEP', 'OKT', 'NOV', 'DES']
-  const getMonth = (dateStr: string) => {
-    const d = new Date(dateStr)
-    return monthNames[d.getMonth()]
-  }
+  const BULAN_FULL = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER']
+  const now = new Date()
+  const bulanIni = BULAN_FULL[now.getMonth()]
+  const bulanLalu = BULAN_FULL[now.getMonth() === 0 ? 11 : now.getMonth() - 1]
 
-  const labelUtama = `LP ${periodeUtama ? getMonth(periodeUtama.tanggal_awal) : ''}`
-  const labelKorbanUtama = `KRB ${periodeUtama ? getMonth(periodeUtama.tanggal_awal) : ''}`
-  const labelPembanding = `LP ${periodePembanding ? getMonth(periodePembanding.tanggal_awal) : ''}`
-  const labelKorbanPembanding = `KRB ${periodePembanding ? getMonth(periodePembanding.tanggal_awal) : ''}`
+  const labelUtama = `LP ${bulanIni}`
+  const labelKorbanUtama = `KRB ${bulanIni}`
+  const labelPembanding = `LP ${bulanLalu}`
+  const labelKorbanPembanding = `KRB ${bulanLalu}`
 
   const colors = {
     lpUtama: '#3b82f6',      // biru
@@ -581,7 +640,26 @@ function TrendLineChart({
             contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
             formatter={(value: number, name: string) => [`${value}`, name]}
           />
-          <Legend verticalAlign="top" height={36} iconType="circle" />
+          <Legend
+            verticalAlign="top"
+            height={36}
+            iconType="circle"
+            content={() => (
+              <div className="flex items-center justify-center gap-4 pt-1">
+                {[
+                  { label: labelUtama, color: colors.lpUtama },
+                  { label: labelKorbanUtama, color: colors.korbanUtama },
+                  { label: labelPembanding, color: colors.lpPembanding },
+                  { label: labelKorbanPembanding, color: colors.korbanPembanding },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-[11px] text-muted-foreground font-medium">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          />
           <Line
             type="monotone"
             dataKey="lp_periode_utama"
@@ -641,6 +719,7 @@ function LakaMonitoringCards({
   jenisKendaraanData,
   topKecamatanData,
   topRumahSakitData,
+  topPolresData,
 }: {
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
@@ -654,6 +733,7 @@ function LakaMonitoringCards({
   jenisKendaraanData?: JenisKendaraanKorbanData | null
   topKecamatanData?: TopKecamatanLakaItem[] | null
   topRumahSakitData?: TopRumahSakitKorbanItem[] | null
+  topPolresData?: { nama: string; count: number }[] | null
 }) {
   const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
   const displayPersen = (p?: string) => {
@@ -747,6 +827,13 @@ function LakaMonitoringCards({
     ? topRumahSakitData.map((item) => ({
       name: item.nama_rumah_sakit,
       value: item.total_korban,
+    }))
+    : null
+
+  const topPolresChartData = topPolresData
+    ? topPolresData.map((item) => ({
+      name: item.nama,
+      value: item.count,
     }))
     : null
 
@@ -1018,6 +1105,21 @@ function LakaMonitoringCards({
       </div>
 
       <KeterjaminanCards data={keterjaminanData} />
+
+      {/* TOP 10 POLRES DENGAN LAKA TERTINGGI */}
+      {topPolresChartData && topPolresChartData.length > 0 && (
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 mt-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">
+              10 Polres dengan Laka Tertinggi
+            </span>
+            <div className="flex items-center justify-center bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl p-2 shrink-0">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <TopPolresBarChart data={topPolresChartData} />
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 mt-6">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
@@ -1437,6 +1539,7 @@ function AdminDashboard({
         jenisKendaraanData={jenisKendaraanData}
         topKecamatanData={topKecamatanData}
         topRumahSakitData={topRumahSakitData}
+        topPolresData={topPolres}
       />
 
       {/* ROW 8: TREND LP & KORBAN */}
@@ -1478,42 +1581,6 @@ function AdminDashboard({
           <JenisLakaPieChart tunggal={lakaTunggal} total={total} />
         </div>
       </div>
-
-      {topPolres.length > 0 && (
-        <div className="mt-6 rounded-xl border bg-card shadow-xs overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b">
-            <div>
-              <p className="font-semibold text-foreground text-sm flex items-center gap-2">
-                <ShieldCheck size={15} className="text-primary" /> Top 10 Polres
-              </p>
-              <p className="text-xs text-muted-foreground">Polres dengan laporan terbanyak</p>
-            </div>
-            <Link href={`${base}/users`} className="text-xs font-semibold text-primary hover:underline">Monitor detail →</Link>
-          </div>
-          <div className="p-5 space-y-3">
-            {topPolres.map((p, i) => (
-              <div key={p.nama} className="flex items-center gap-3">
-                <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold
-                  ${i === 0 ? 'bg-amber-100 text-amber-700' : i === 1 ? 'bg-slate-100 text-slate-600' : i === 2 ? 'bg-orange-100 text-orange-700' : 'bg-muted text-muted-foreground'}`}>
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-foreground truncate">{p.nama}</span>
-                    <span className="text-xs font-bold text-primary ml-2 shrink-0">{p.count}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500"
-                      style={{ width: `${Math.round((p.count / (topPolres[0]?.count || 1)) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="mt-6 rounded-xl border bg-card shadow-xs overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -1771,9 +1838,8 @@ export function DashboardPage() {
         setTrendLoading(true)
         setTrendError(null)
         const today = new Date()
-        const thirtyDaysAgo = new Date(today)
-        thirtyDaysAgo.setDate(today.getDate() - 30)
-        const tanggalAwal = thirtyDaysAgo.toISOString().split('T')[0]
+        const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        const tanggalAwal = startOfPrevMonth.toISOString().split('T')[0]
         const tanggalAkhir = today.toISOString().split('T')[0]
         const polresId = user.role === 'admin' ? 'ALL' : user.wilayah_id?.toString() || 'ALL'
 
