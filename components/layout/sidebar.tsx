@@ -76,9 +76,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <Shield size={18} className="text-white" />
         </div>
         <div className="relative min-w-0 flex-1">
-          <p className="text-sm font-black tracking-tight text-sidebar-foreground leading-none">DATA LAKA</p>
+          <p className="text-sm font-black tracking-tight text-sidebar-foreground leading-none">DEMO JR-PROJECT</p>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-sidebar-foreground/45 leading-none mt-0.5">
-            Jasa Raharja
+            Tahap Pengembangan
           </p>
         </div>
         <button

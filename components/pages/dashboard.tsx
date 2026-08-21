@@ -1519,7 +1519,7 @@ function AdminDashboard({
   const topPolres = Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
 
   return (
-    <SILakaShell title="Dashboard Admin" eyebrow="Data Laka JR">
+    <SILakaShell title="Dashboard Admin" eyebrow="DEMO JR-PROJECT">
       <PageHeader
         title="Dashboard"
         description="Ringkasan seluruh laporan kecelakaan lalu lintas di semua wilayah."
@@ -1656,7 +1656,7 @@ function UserDashboard({
     }))
 
   return (
-    <SILakaShell title="Dashboard" eyebrow="Data Laka JR">
+    <SILakaShell title="Dashboard" eyebrow="DEMO JR-PROJECT">
       <PageHeader
         title="Dashboard"
         description={wilayahNama ? `Data laporan kecelakaan lalu lintas wilayah ${wilayahNama}.` : 'Selamat datang di sistem monitoring laka lantas.'}
