@@ -9,6 +9,7 @@ import {
   Shield, FilePlus, List, ChevronUp, MapPin
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth-store'
+import { useRoleBase } from '@/lib/role-base'
 
 function NavLink({
   href, icon: Icon, label, active, onClick, indent = false
@@ -43,7 +44,8 @@ function NavLink({
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout, init } = useAuthStore()
-  const isLaporanPath = pathname.startsWith('/laporan-polisi')
+  const base = useRoleBase()
+  const isLaporanPath = pathname.startsWith(`${base}/laporan-polisi`)
   const [laporanOpen, setLaporanOpen] = useState(isLaporanPath)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
@@ -103,7 +105,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             Menu Utama
           </p>
           <div className="flex flex-col gap-0.5">
-            <NavLink href="/" icon={LayoutDashboard} label="Dashboard" active={pathname === '/'} onClick={handleLinkClick} />
+            <NavLink href={`${base}/dashboard`} icon={LayoutDashboard} label="Dashboard" active={pathname === `${base}/dashboard`} onClick={handleLinkClick} />
 
             {/* Laporan Polisi Accordion */}
             <div>
@@ -130,7 +132,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               <div className={`overflow-hidden transition-all duration-300 ${laporanOpen ? 'max-h-28 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="mt-0.5 ml-4 pl-3 border-l-2 border-sidebar-border/50 flex flex-col gap-0.5 py-1">
                   <NavLink
-                    href="/laporan-polisi"
+                    href={`${base}/laporan-polisi`}
                     icon={List}
                     label="Daftar Laporan"
                     active={pathname === '/laporan-polisi'}
@@ -138,7 +140,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     indent
                   />
                   <NavLink
-                    href="/laporan-polisi/tambah"
+                    href={`${base}/laporan-polisi/tambah`}
                     icon={FilePlus}
                     label="Buat Laporan Baru"
                     active={pathname === '/laporan-polisi/tambah'}
@@ -149,7 +151,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               </div>
             </div>
 
-            <NavLink href="/statistik" icon={FileBarChart} label="Statistik" active={pathname === '/statistik'} onClick={handleLinkClick} />
+            <NavLink href={`${base}/statistik`} icon={FileBarChart} label="Statistik" active={pathname === `${base}/statistik`} onClick={handleLinkClick} />
           </div>
         </div>
 
@@ -160,9 +162,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               Administrasi
             </p>
             <div className="flex flex-col gap-0.5">
-              <NavLink href="/master-data" icon={Database} label="Data Master" active={pathname.startsWith('/master-data')} onClick={handleLinkClick} />
-              <NavLink href="/users" icon={Users} label="Pengguna" active={pathname === '/users'} onClick={handleLinkClick} />
-              <NavLink href="/activity-log" icon={Activity} label="Log Aktivitas" active={pathname === '/activity-log'} onClick={handleLinkClick} />
+              <NavLink href={`${base}/master-data`} icon={Database} label="Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
+              <NavLink href={`${base}/users`} icon={Users} label="Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
+              <NavLink href={`${base}/activity-log`} icon={Activity} label="Log Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />
             </div>
           </div>
         )}

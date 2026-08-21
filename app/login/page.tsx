@@ -9,7 +9,7 @@ import { Eye, EyeOff, Shield, Loader2, Lock } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated, init } = useAuthStore()
+  const { login, user, isAuthenticated, init } = useAuthStore()
   const { error: showError } = useToast()
 
   const [username, setUsername] = useState('')
@@ -25,9 +25,9 @@ export default function LoginPage() {
   // If already authenticated, redirect to dashboard
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/')
+      router.replace(user?.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,7 +38,7 @@ export default function LoginPage() {
       const res = await authApi.login(username.trim(), password)
       if (res.data.success) {
         login(res.data.data.token, res.data.data.user)
-        router.replace('/')
+        router.replace(res.data.data.user.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
       }
     } catch (err: unknown) {
       const msg =
