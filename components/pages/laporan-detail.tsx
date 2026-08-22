@@ -118,7 +118,7 @@ export function LaporanDetailPage() {
             <Field label="Tanggal LP" value={formatDate(laporan.tanggal_lp)} />
             <Field label="Telat LP" value={`${laporan.telat_lp} hari`} />
             <Field label="Laka Tunggal" value={laporan.laka_tunggal ? 'Ya' : 'Tidak'} />
-            <Field label="Created At" value={laporan.created_at ? formatDate(laporan.created_at) : '-'} />
+
           </div>
         </div>
 

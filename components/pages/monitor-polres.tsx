@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
 import {
@@ -38,12 +38,13 @@ function selisihHari(tglLaka?: string | null, tglLp?: string | null): number | s
   return diff
 }
 
-function AttendanceGridView({ laporan, polresList }: { laporan: LaporanPolisi[]; polresList: MasterItem[] }) {
-  const now = new Date()
-  const year = now.getFullYear()
-  const monthIdx = now.getMonth()
+function AttendanceGridView({ laporan, polresList, monthFilter }: { laporan: LaporanPolisi[]; polresList: MasterItem[]; monthFilter: string }) {
+  const [yearStr, monthStr] = monthFilter.split('-')
+  const year = parseInt(yearStr) || new Date().getFullYear()
+  const monthIdx = (parseInt(monthStr) || (new Date().getMonth() + 1)) - 1
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate()
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  const displayDate = new Date(year, monthIdx, 1)
 
   const filledMap = new Map<number, Set<number>>()
   laporan.forEach((lap) => {
@@ -64,7 +65,7 @@ function AttendanceGridView({ laporan, polresList }: { laporan: LaporanPolisi[];
             <th rowSpan={3} className="border border-border/60 bg-muted/70 px-3 py-1.5 font-bold text-[9px] tracking-wider text-foreground align-middle text-left whitespace-nowrap">Nama Polres</th>
           </tr>
           <tr>
-            <th colSpan={daysInMonth} className="border border-border/60 bg-muted/70 px-2 py-1.5 font-bold text-[9px] tracking-wider text-foreground text-center">{now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</th>
+            <th colSpan={daysInMonth} className="border border-border/60 bg-muted/70 px-2 py-1.5 font-bold text-[9px] tracking-wider text-foreground text-center">{displayDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</th>
           </tr>
           <tr>
             {days.map((d) => (
@@ -169,7 +170,7 @@ function SpreadsheetView({ laporan, polresList, mapKasusTabrak, mapFaktorPenyeba
 
   return (
     <div>
-      <div ref={tableRef} className="overflow-x-auto rounded-xl border border-border/60 bg-card">
+      <div ref={tableRef} className="overflow-auto rounded-xl border border-border/60 bg-card max-h-[calc(100vh-260px)]">
         <table className="w-full text-[10px] border-collapse">
           <thead className="sticky top-0 z-10 border-b border-border/40">
             <tr className="bg-muted/70">
@@ -313,6 +314,7 @@ export function MonitorPolresPage() {
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'spreadsheet'>('card')
   const [polresFilter, setPolresFilter] = useState<string>('all')
+  const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(0, 7))
 
   useEffect(() => {
     async function fetchData() {
@@ -344,6 +346,13 @@ export function MonitorPolresPage() {
 
   const filtered = laporan.filter((l) => {
     if (polresFilter !== 'all' && l.polres_id !== parseInt(polresFilter)) return false
+    if (monthFilter) {
+      const d = new Date(l.tanggal_laka)
+      if (!isNaN(d.getTime())) {
+        const lpMonth = d.toISOString().slice(0, 7)
+        if (lpMonth !== monthFilter) return false
+      }
+    }
     return true
   })
 
@@ -369,6 +378,13 @@ export function MonitorPolresPage() {
           </select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>
+
+        <input
+          type="month"
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="rounded-lg border border-border/80 bg-card px-3 py-2 text-sm font-medium text-foreground hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors"
+        />
 
         <div className="flex rounded-lg border border-border/80 bg-muted/40 p-0.5 ml-auto">
           <button
@@ -412,7 +428,7 @@ export function MonitorPolresPage() {
                   <p className="text-sm text-muted-foreground">Tidak ada data untuk filter yang dipilih</p>
                 </div>
               ) : (
-                <AttendanceGridView laporan={filtered} polresList={polresListFiltered} />
+                <AttendanceGridView laporan={filtered} polresList={polresListFiltered} monthFilter={monthFilter} />
               )}
             </>
           )}

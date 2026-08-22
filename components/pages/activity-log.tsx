@@ -5,6 +5,7 @@ import { Loader2, AlertCircle, Filter } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
 import { activityLogApi, type ActivityLog } from '@/lib/api'
+import { Pagination } from '@/components/ui/pagination'
 import { useToast } from '@/components/ui/toast-provider'
 
 const AKSI_COLORS: Record<string, string> = {
@@ -130,28 +131,18 @@ export function ActivityLogPage() {
               </table>
             </div>
           )}
-        </div>
 
-        {/* Pagination */}
-        {meta.total_pages > 1 && (
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
-            >
-              ← Sebelumnya
-            </button>
-            <span className="text-xs text-muted-foreground">Hal {page} / {meta.total_pages}</span>
-            <button
-              onClick={() => setPage((p) => Math.min(meta.total_pages, p + 1))}
-              disabled={page === meta.total_pages}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
-            >
-              Berikutnya →
-            </button>
-          </div>
-        )}
+          {/* Pagination */}
+          {meta.total_pages > 0 && (
+            <Pagination
+              currentPage={page}
+              totalPages={meta.total_pages}
+              totalItems={meta.total}
+              itemsPerPage={20}
+              onPageChange={setPage}
+            />
+          )}
+        </div>
       </SILakaShell>
     </AuthGuard>
   )

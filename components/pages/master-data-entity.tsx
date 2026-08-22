@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Loader2, AlertCircle, Trash2, Edit2, Plus, ArrowLeft } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader, Button, Field, inputClass } from '@/components/si-laka-shell'
+import { Pagination } from '@/components/ui/pagination'
 import { masterApi, type MasterItem } from '@/lib/api'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
@@ -265,25 +266,13 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
               </div>
 
               {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="mt-0 flex items-center justify-end gap-2 border-t px-5 py-4 bg-muted/5">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="rounded-lg border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
-                  >
-                    ← Sebelumnya
-                  </button>
-                  <span className="text-xs text-muted-foreground">Hal {currentPage} / {totalPages}</span>
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="rounded-lg border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-40 cursor-pointer"
-                  >
-                    Berikutnya →
-                  </button>
-                </div>
-              )}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
             </>
           )}
         </div>

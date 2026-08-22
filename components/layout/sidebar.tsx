@@ -70,9 +70,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     >
       {/* ── Logo Header ── */}
       <div className="relative flex h-16 items-center gap-3 px-5 border-b border-sidebar-border/60 overflow-hidden">
-        {/* Background gradient accent */}
-        <div className="absolute inset-0 bg-gradient-to-r from-sidebar-primary/8 to-transparent pointer-events-none" />
-        <div className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/70 shadow-md shadow-sidebar-primary/30">
+        <div className="relative flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary shadow-md shadow-sidebar-primary/20">
           <Shield size={18} className="text-white" />
         </div>
         <div className="relative min-w-0 flex-1">
@@ -101,7 +99,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="flex flex-col gap-0.5">
             <NavLink href={`${base}/dashboard`} icon={LayoutDashboard} label="Dashboard" active={pathname === `${base}/dashboard`} onClick={handleLinkClick} />
 
-            <NavLink href={`${base}/laporan-polisi`} icon={ClipboardList} label="Laporan Polisi" active={pathname.startsWith(`${base}/laporan-polisi`)} onClick={handleLinkClick} />
+            <NavLink href={`${base}/laporan-polisi`} icon={ClipboardList} label="Kelola Laporan Polisi" active={pathname.startsWith(`${base}/laporan-polisi`)} onClick={handleLinkClick} />
 
             <NavLink href={`${base}/statistik`} icon={FileBarChart} label="Statistik" active={pathname === `${base}/statistik`} onClick={handleLinkClick} />
           </div>
@@ -114,10 +112,10 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               Administrasi
             </p>
             <div className="flex flex-col gap-0.5">
-              <NavLink href={`${base}/monitor-polres`} icon={Monitor} label="Monitor Polres" active={pathname === `${base}/monitor-polres`} onClick={handleLinkClick} />
-              <NavLink href={`${base}/master-data`} icon={Database} label="Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
-              <NavLink href={`${base}/users`} icon={Users} label="Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
-              <NavLink href={`${base}/activity-log`} icon={Activity} label="Log Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />
+              <NavLink href={`${base}/monitor-polres`} icon={Monitor} label="Monitoring Data" active={pathname === `${base}/monitor-polres`} onClick={handleLinkClick} />
+              <NavLink href={`${base}/master-data`} icon={Database} label="Kelola Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
+              <NavLink href={`${base}/users`} icon={Users} label="Kelola Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
+              <NavLink href={`${base}/activity-log`} icon={Activity} label="Riwayat Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />
             </div>
           </div>
         )}
@@ -145,7 +143,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           onClick={() => setProfileMenuOpen(!profileMenuOpen)}
           className="flex w-full items-center gap-3 rounded-xl p-2.5 hover:bg-sidebar-accent/60 text-left transition-all duration-200 cursor-pointer group"
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/60 text-white text-xs font-bold shadow-sm">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-white text-xs font-bold shadow-sm">
             {initials}
           </div>
           <div className="min-w-0 flex-1">

@@ -18,18 +18,13 @@ export function Topbar({ title, eyebrow, onMenu }: { title: string; eyebrow: str
     window.localStorage.setItem('si-laka-theme', next ? 'dark' : 'light')
   }
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur md:px-8">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-card px-4 md:px-8">
+      <div className="flex items-center gap-4">
         <button className="text-muted-foreground hover:text-foreground transition-colors hover:cursor-pointer" onClick={onMenu} aria-label="Toggle menu">
           <Menu size={20} />
         </button>
-        {/* Breadcrumb */}
-        {eyebrow && title && (
-          <nav className="hidden items-center gap-1.5 sm:flex" aria-label="Breadcrumb">
-            <span className="text-sm text-muted-foreground/70">{eyebrow}</span>
-            <ChevronRight size={13} className="text-muted-foreground/40" />
-            <span className="text-sm font-semibold text-foreground">{title}</span>
-          </nav>
+        {title && (
+          <span className="text-sm font-bold tracking-tight text-foreground">{title}</span>
         )}
       </div>
       <div className="flex items-center gap-2">

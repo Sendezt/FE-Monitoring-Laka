@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FilePlus2, Search, Trash2, Eye, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, PageHeader, SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, type LaporanPolisi } from '@/lib/api'
+import { Pagination } from '@/components/ui/pagination'
+import { laporanApi, masterApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
@@ -22,6 +23,8 @@ export function LaporanPolisiListPage() {
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [polresFilter, setPolresFilter] = useState('')
+  const [polresList, setPolresList] = useState<MasterItem[]>([])
   const [deletingId, setDeletingId] = useState<number | null>(null)
   
   // State untuk pagination
@@ -30,7 +33,7 @@ export function LaporanPolisiListPage() {
   const [totalItems, setTotalItems] = useState(0)
   const limit = 10
 
-  const fetchLaporan = (pageNum: number = page, searchQuery: string = search) => {
+  const fetchLaporan = (pageNum: number = page, searchQuery: string = search, filterPolres: string = polresFilter) => {
     setLoading(true)
     
     // Build params object
@@ -44,6 +47,10 @@ export function LaporanPolisiListPage() {
       params.no_lp = searchQuery.trim()
     }
     
+    if (filterPolres) {
+      params.polres_id = filterPolres
+    }
+    
     laporanApi.list(params)
       .then((res) => {
         setLaporan(res.data.data || [])
@@ -55,14 +62,21 @@ export function LaporanPolisiListPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { 
-    fetchLaporan(1) 
+  // Initial fetch untuk daftar polres
+  useEffect(() => {
+    masterApi.polres.list({ limit: 100 })
+      .then((res) => setPolresList(res.data.data || []))
+      .catch(console.error)
   }, [])
+
+  useEffect(() => { 
+    fetchLaporan(1, search, polresFilter) 
+  }, [polresFilter])
 
   // Handle search dengan debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchLaporan(1, search)
+      fetchLaporan(1, search, polresFilter)
     }, 500)
 
     return () => clearTimeout(timer)
@@ -93,7 +107,7 @@ export function LaporanPolisiListPage() {
     <SILakaShell title="Daftar Laporan" eyebrow="Laporan Polisi">
       {/* Search & Actions */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -103,6 +117,16 @@ export function LaporanPolisiListPage() {
             className="w-full rounded-lg border bg-background pl-9 pr-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
           />
         </div>
+        <select
+          value={polresFilter}
+          onChange={(e) => setPolresFilter(e.target.value)}
+          className="rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10"
+        >
+          <option value="">Semua Polres</option>
+          {polresList.map((p) => (
+            <option key={p.id} value={p.id}>{p.nama}</option>
+          ))}
+        </select>
         <span className="text-xs text-muted-foreground">
           {loading ? 'Memuat...' : `${totalItems} laporan`}
         </span>
@@ -138,7 +162,7 @@ export function LaporanPolisiListPage() {
                 <thead>
                   <tr className="bg-muted/30 text-xs text-muted-foreground border-b">
                     <th className="px-5 py-3 text-left font-semibold">No. LP</th>
-                    <th className="px-5 py-3 text-left font-semibold">Tanggal Kejadian</th>
+                    <th className="px-5 py-3 text-left font-semibold">Tanggal LP</th>
                     <th className="px-5 py-3 text-left font-semibold hidden md:table-cell">Lokasi</th>
                     <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Kendaraan</th>
                     <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Korban</th>
@@ -152,7 +176,7 @@ export function LaporanPolisiListPage() {
                       <td className="px-5 py-3">
                         <span className="font-mono text-xs font-semibold text-primary">{l.no_lp}</span>
                       </td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground">{formatDate(l.tanggal_laka)}</td>
+                      <td className="px-5 py-3 text-xs text-muted-foreground">{formatDate(l.tanggal_lp)}</td>
                       <td className="px-5 py-3 text-xs text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{l.lokasi_laka}</td>
                       <td className="px-5 py-3 text-xs hidden sm:table-cell">{l.kendaraan?.length ?? 0} unit</td>
                       <td className="px-5 py-3 text-xs hidden sm:table-cell">{l.korban?.length ?? 0} orang</td>
@@ -188,61 +212,13 @@ export function LaporanPolisiListPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between border-t px-5 py-3 text-sm gap-3">
-                <span className="text-muted-foreground text-xs">
-                  Menampilkan {((page - 1) * limit) + 1} - {Math.min(page * limit, totalItems)} dari {totalItems} data
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1}
-                    className="p-2 rounded-md border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  
-                  <div className="flex gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter(p => {
-                        if (p === 1 || p === totalPages) return true
-                        if (Math.abs(p - page) <= 1) return true
-                        return false
-                      })
-                      .map((p, idx, arr) => {
-                        if (idx > 0 && p - arr[idx - 1] > 1) {
-                          return (
-                            <span key={`ellipsis-${p}`} className="px-3 py-2 text-muted-foreground">
-                              …
-                            </span>
-                          )
-                        }
-                        return (
-                          <button
-                            key={p}
-                            onClick={() => handlePageChange(p)}
-                            className={`px-3 py-2 rounded-md text-xs transition-colors ${
-                              p === page
-                                ? 'bg-primary text-primary-foreground font-semibold'
-                                : 'hover:bg-muted'
-                            }`}
-                          >
-                            {p}
-                          </button>
-                        )
-                      })}
-                  </div>
-
-                  <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page === totalPages}
-                    className="p-2 rounded-md border hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={limit}
+              onPageChange={handlePageChange}
+            />
           </>
         )}
       </div>

@@ -105,11 +105,7 @@ export function StatistikPage() {
             />
           </div>
 
-          {data.komparasi?.keterangan && (
-            <div className="mt-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              {data.komparasi.keterangan}
-            </div>
-          )}
+
 
           <section className="mt-6 rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
             <h3 className="font-semibold text-foreground mb-4">Grafik Komparasi</h3>
