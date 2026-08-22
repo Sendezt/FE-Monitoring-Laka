@@ -6,7 +6,7 @@ import {
   FilePlus2, ClipboardList, CalendarDays, HeartPulse,
   Loader2, TrendingUp, AlertCircle, ShieldCheck, ShieldAlert, ShieldQuestion,
   BarChart2, MapPin, ArrowRight, FileText, PieChart as LucidePieChart,
-  Users, Car
+  Users, Car, Clock
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList, LineChart, Line, Legend } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
@@ -21,6 +21,9 @@ import type {
   TopKecamatanLakaItem,
   TopRumahSakitKorbanItem,
   TrendHarianData,
+  PerbandinganData,
+  PerbandinganCideraData,
+  TopPolresLpTerlamaItem,
 } from '@/lib/api'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a78bfa', '#ddd6fe']
@@ -198,6 +201,147 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
     </table>
   )
 }
+
+// Panah selisih: naik (▲ merah, karena kecelakaan bertambah = buruk),
+// turun (▼ hijau), sama (– abu).
+function SelisihCell({ value }: { value: number }) {
+  if (value > 0) return <span className="font-semibold text-rose-600">{value} ▲</span>
+  if (value < 0) return <span className="font-semibold text-emerald-600">{Math.abs(value)} ▼</span>
+  return <span className="text-muted-foreground">0 –</span>
+}
+
+function fmtRangeID(s?: string) {
+  if (!s) return '-'
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return s
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function fmtDateSlashed(s?: string) {
+  if (!s) return '-'
+  const d = new Date(s)
+  if (isNaN(d.getTime())) return s
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function PerbandinganPeriodeTable({ data, cidera }: { data?: PerbandinganData | null; cidera?: PerbandinganCideraData | null }) {
+  if (!data && !cidera) return null
+
+  return (
+    <div className="mt-6 mb-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Tabel 1 — Laka & Korban */}
+        {data && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm text-slate-800 dark:text-white uppercase tracking-wide">
+                  Perbandingan Laka &amp; Korban
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {/* {fmtRangeID(data.periode_utama.tanggal_awal)} – {fmtRangeID(data.periode_utama.tanggal_akhir)} <span className="font-semibold text-slate-500">vs</span> {fmtRangeID(data.periode_pembanding.tanggal_awal)} – {fmtRangeID(data.periode_pembanding.tanggal_akhir)} */}
+                </p>
+              </div>
+              <div className="flex items-center justify-center bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl p-2 shrink-0">
+                <BarChart2 size={18} />
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/50">
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Periode</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Laka (LP)</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Korban</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr className="bg-white dark:bg-slate-950">
+                    <td className="px-4 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      {fmtDateSlashed(data.periode_utama.tanggal_awal)} <span className="font-semibold text-slate-500 mx-1">S.D</span> {fmtDateSlashed(data.periode_utama.tanggal_akhir)}
+                    </td>
+                    <td className="px-4 py-4 text-center text-xl font-black text-blue-600 dark:text-blue-400">{data.periode_utama.total_lp}</td>
+                    <td className="px-4 py-4 text-center text-xl font-black text-blue-600 dark:text-blue-400">{data.periode_utama.total_korban}</td>
+                  </tr>
+                  <tr className="bg-slate-50/50 dark:bg-slate-900/20">
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      {fmtDateSlashed(data.periode_pembanding.tanggal_awal)} <span className="font-semibold text-slate-500 mx-1">S.D</span> {fmtDateSlashed(data.periode_pembanding.tanggal_akhir)}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{data.periode_pembanding.total_lp}</td>
+                    <td className="px-4 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{data.periode_pembanding.total_korban}</td>
+                  </tr>
+                  <tr className="bg-blue-50/30 dark:bg-blue-900/10">
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">SELISIH</td>
+                    <td className="px-4 py-3 text-center"><SelisihCell value={data.selisih.selisih_lp} /></td>
+                    <td className="px-4 py-3 text-center"><SelisihCell value={data.selisih.selisih_korban} /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tabel 2 — Kategori Cidera */}
+        {cidera && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm text-slate-800 dark:text-white uppercase tracking-wide">
+                  Perbandingan Cidera
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {/* {fmtRangeID(cidera.periode_utama.tanggal_awal)} – {fmtRangeID(cidera.periode_utama.tanggal_akhir)} <span className="font-semibold text-slate-500">vs</span> {fmtRangeID(cidera.periode_pembanding.tanggal_awal)} – {fmtRangeID(cidera.periode_pembanding.tanggal_akhir)} */}
+                </p>
+              </div>
+              <div className="flex items-center justify-center bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl p-2 shrink-0">
+                <HeartPulse size={18} />
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-800/50">
+                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Periode</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">LL</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">LL-MD</th>
+                    <th className="px-3 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">MD</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr className="bg-white dark:bg-slate-950">
+                    <td className="px-4 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      BULAN INI
+                    </td>
+                    <td className="px-3 py-4 text-center text-lg font-black text-blue-600 dark:text-blue-400">{cidera.periode_utama.ll}</td>
+                    <td className="px-3 py-4 text-center text-lg font-black text-amber-600 dark:text-amber-500">{cidera.periode_utama.ll_md}</td>
+                    <td className="px-3 py-4 text-center text-lg font-black text-rose-600 dark:text-rose-500">{cidera.periode_utama.md}</td>
+                  </tr>
+                  <tr className="bg-slate-50/50 dark:bg-slate-900/20">
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      BULAN LALU
+                    </td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_pembanding.ll}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_pembanding.ll_md}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_pembanding.md}</td>
+                  </tr>
+                  <tr className="bg-rose-50/30 dark:bg-rose-900/10">
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">SELISIH</td>
+                    <td className="px-3 py-3 text-center"><SelisihCell value={cidera.selisih.ll} /></td>
+                    <td className="px-3 py-3 text-center"><SelisihCell value={cidera.selisih.ll_md} /></td>
+                    <td className="px-3 py-3 text-center"><SelisihCell value={cidera.selisih.md} /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 interface StatusLpCardData {
   total: number
@@ -727,6 +871,9 @@ function LakaMonitoringCards({
   topKecamatanData,
   topRumahSakitData,
   topPolresData,
+  topPolresLamaData,
+  perbandinganData,
+  perbandinganCideraData,
 }: {
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
@@ -741,6 +888,9 @@ function LakaMonitoringCards({
   topKecamatanData?: TopKecamatanLakaItem[] | null
   topRumahSakitData?: TopRumahSakitKorbanItem[] | null
   topPolresData?: { nama: string; count: number }[] | null
+  topPolresLamaData?: { nama: string; avgTelat: number }[] | null
+  perbandinganData?: PerbandinganData | null
+  perbandinganCideraData?: PerbandinganCideraData | null
 }) {
   const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
   const displayPersen = (p?: string) => {
@@ -1113,20 +1263,38 @@ function LakaMonitoringCards({
 
       <KeterjaminanCards data={keterjaminanData} />
 
-      {/* TOP 10 POLRES DENGAN LAKA TERTINGGI */}
-      {topPolresChartData && topPolresChartData.length > 0 && (
-        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 mt-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-extrabold text-slate-800 dark:text-white uppercase tracking-wide">
-              10 Polres dengan Laka Tertinggi
-            </span>
-            <div className="flex items-center justify-center bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl p-2 shrink-0">
-              <ShieldCheck size={18} />
+      <PerbandinganPeriodeTable data={perbandinganData} cidera={perbandinganCideraData} />
+
+      {/* TOP 10 POLRES DENGAN LAKA TERTINGGI & LP TERLAMA */}
+      <div className="grid gap-6 lg:grid-cols-2 mt-6">
+        {topPolresChartData && topPolresChartData.length > 0 && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-slate-800 dark:text-white uppercase tracking-wide">
+                10 Polres dengan Laka Tertinggi
+              </span>
+              <div className="flex items-center justify-center bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/30 text-purple-600 dark:text-purple-400 rounded-xl p-2 shrink-0">
+                <ShieldCheck size={18} />
+              </div>
             </div>
+            <TopPolresBarChart data={topPolresChartData} />
           </div>
-          <TopPolresBarChart data={topPolresChartData} />
-        </div>
-      )}
+        )}
+
+        {topPolresLamaData && topPolresLamaData.length > 0 && (
+          <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-slate-800 dark:text-white uppercase tracking-wide">
+                10 Polres dengan Penerbitan LP Terlama
+              </span>
+              <div className="flex items-center justify-center bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl p-2 shrink-0">
+                <Clock size={18} />
+              </div>
+            </div>
+            <TopLpTerlamaBarChart data={topPolresLamaData} />
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2 mt-6">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
@@ -1269,12 +1437,6 @@ function LakaMonitoringCards({
 
       {/* ROW 6: STATISTIK DETAIL KECELAKAAN */}
       <div className="mt-8">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            ROW 6: STATISTIK DETAIL KECELAKAAN
-          </span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
             <div className="flex items-center justify-between mb-2">
@@ -1324,12 +1486,6 @@ function LakaMonitoringCards({
 
       {/* ROW 7: TOP WILAYAH DAN RUMAH SAKIT */}
       <div className="mt-8">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            ROW 7: TOP WILAYAH DAN RUMAH SAKIT
-          </span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col">
             <div className="flex items-center justify-between mb-2">
@@ -1458,6 +1614,68 @@ function KeterjaminanCards({ data }: { data: KeterjaminanCardData | null }) {
   )
 }
 
+/* ─── Top 10 Polres dengan Penerbitan LP Terlama ───────────── */
+
+function TopLpTerlamaBarChart({ data }: { data: { nama: string; avgTelat: number }[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[340px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <AlertCircle size={16} />
+        <span>Data tidak tersedia</span>
+      </div>
+    )
+  }
+
+  const chartData = [...data]
+    .sort((a, b) => b.avgTelat - a.avgTelat)
+    .slice(0, 10)
+    .map(d => ({ name: d.nama, value: parseFloat(d.avgTelat.toFixed(2)) }))
+
+  return (
+    <ResponsiveContainer width="100%" height={340}>
+      <BarChart
+        data={chartData}
+        layout="vertical"
+        margin={{ top: 8, right: 56, left: 100, bottom: 8 }}
+        barSize={18}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          allowDecimals={true}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(v: number) => `${v}`}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)', fontWeight: 600 }}
+          axisLine={false}
+          tickLine={false}
+          width={100}
+          tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 14)}…` : v)}
+        />
+        <Tooltip
+          formatter={(value: number) => [`${value} hari`, 'Rata-rata Telat']}
+          contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+        />
+        <Bar dataKey="value" fill="#e11d48" radius={[0, 8, 8, 0]}>
+          <LabelList
+            dataKey="value"
+            position="right"
+            fontSize={11}
+            fontWeight="bold"
+            fill="#e11d48"
+            formatter={(v: number) => `${v} hari`}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 /* ─── Admin Dashboard ──────────────────────────────────────────────────────── */
 
 function AdminDashboard({
@@ -1479,6 +1697,9 @@ function AdminDashboard({
   trendData,
   trendLoading,
   trendError,
+  perbandinganData,
+  perbandinganCideraData,
+  topPolresLpTerlamaData,
 }: {
   laporan: LaporanPolisi[]
   total: number
@@ -1497,6 +1718,9 @@ function AdminDashboard({
   trendData: any
   trendLoading: boolean
   trendError: string | null
+  perbandinganData?: PerbandinganData | null
+  perbandinganCideraData?: PerbandinganCideraData | null
+  topPolresLpTerlamaData?: TopPolresLpTerlamaItem[] | null
 }) {
   const base = useRoleBase()
   const today = new Date().toISOString().slice(0, 10)
@@ -1525,6 +1749,7 @@ function AdminDashboard({
     }
   })
   const topPolres = Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
+  // topPolresLama sekarang dari API (topPolresLpTerlamaData)
 
   return (
     <SILakaShell title="Dashboard Admin" eyebrow="DEMO JR-PROJECT">
@@ -1550,20 +1775,16 @@ function AdminDashboard({
         topKecamatanData={topKecamatanData}
         topRumahSakitData={topRumahSakitData}
         topPolresData={topPolres}
+        topPolresLamaData={topPolresLpTerlamaData?.map(d => ({ nama: d.nama_polres, avgTelat: parseFloat(d.rata_rata_telat) })) ?? null}
+        perbandinganData={perbandinganData}
+        perbandinganCideraData={perbandinganCideraData}
       />
 
-      {/* ROW 8: TREND LP & KORBAN */}
       <div className="mt-8">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            ROW 8: TREND LP & KORBAN
-          </span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              TREND LP & KORBAN
+            <span className="text-sm text-slate-800 dark:text-white uppercase tracking-wide">
+              Trend LP & Korban
             </span>
             <div className="flex items-center justify-center bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl p-2 shrink-0">
               <TrendingUp size={18} />
@@ -1606,8 +1827,6 @@ function AdminDashboard({
   )
 }
 
-/* ─── User Dashboard ───────────────────────────────────────────────────────── */
-
 function UserDashboard({
   filterProps,
   laporan,
@@ -1628,6 +1847,9 @@ function UserDashboard({
   trendData,
   trendLoading,
   trendError,
+  perbandinganData,
+  perbandinganCideraData,
+  topPolresLpTerlamaData,
 }: {
   laporan: LaporanPolisi[]
   wilayahNama: string
@@ -1647,6 +1869,9 @@ function UserDashboard({
   trendData: any
   trendLoading: boolean
   trendError: string | null
+  perbandinganData?: PerbandinganData | null
+  perbandinganCideraData?: PerbandinganCideraData | null
+  topPolresLpTerlamaData?: TopPolresLpTerlamaItem[] | null
 }) {
   const base = useRoleBase()
   const today = new Date().toISOString().slice(0, 10)
@@ -1689,16 +1914,12 @@ function UserDashboard({
         jenisKendaraanData={jenisKendaraanData}
         topKecamatanData={topKecamatanData}
         topRumahSakitData={topRumahSakitData}
+        topPolresLamaData={topPolresLpTerlamaData?.map(d => ({ nama: d.nama_polres, avgTelat: parseFloat(d.rata_rata_telat) })) ?? null}
+        perbandinganData={perbandinganData}
+        perbandinganCideraData={perbandinganCideraData}
       />
 
-      {/* ROW 8: TREND LP & KORBAN */}
       <div className="mt-8">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            ROW 8: TREND LP & KORBAN
-          </span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
@@ -1816,6 +2037,9 @@ export function DashboardPage() {
   const [jenisKendaraanData, setJenisKendaraanData] = useState<JenisKendaraanKorbanData | null>(null)
   const [topKecamatanData, setTopKecamatanData] = useState<TopKecamatanLakaItem[] | null>(null)
   const [topRumahSakitData, setTopRumahSakitData] = useState<TopRumahSakitKorbanItem[] | null>(null)
+  const [perbandinganData, setPerbandinganData] = useState<PerbandinganData | null>(null)
+  const [perbandinganCideraData, setPerbandinganCideraData] = useState<PerbandinganCideraData | null>(null)
+  const [topPolresLpTerlamaData, setTopPolresLpTerlamaData] = useState<TopPolresLpTerlamaItem[] | null>(null)
   const [trendData, setTrendData] = useState<any>(null)
   const [trendLoading, setTrendLoading] = useState(false)
   const [trendError, setTrendError] = useState<string | null>(null)
@@ -1846,6 +2070,7 @@ export function DashboardPage() {
           jenisKendaraanRes,
           topKecamatanRes,
           topRumahSakitRes,
+          topPolresLpTerlamaRes,
         ] = await Promise.all([
           laporanApi.statusLp({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           laporanApi.breakdownTerlambat({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
@@ -1859,7 +2084,22 @@ export function DashboardPage() {
           chartApi.korbanPerJenisKendaraan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           chartApi.topKecamatanLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           chartApi.topRumahSakitKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.topPolresLpTerlama({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
         ])
+
+        // Perbandingan 2 periode (mundur 1 bulan otomatis) — pakai rentang & polres dari filter
+        if (from && to) {
+          const cmpParams = { tanggal_awal: from, tanggal_akhir: to, polres_id: polres !== 'ALL' ? polres : 'ALL' }
+          const [perbRes, perbCideraRes] = await Promise.all([
+            chartApi.perbandingan(cmpParams).catch(() => null),
+            chartApi.perbandinganCidera(cmpParams).catch(() => null),
+          ])
+          setPerbandinganData(perbRes ? perbRes.data.data : null)
+          setPerbandinganCideraData(perbCideraRes ? perbCideraRes.data.data : null)
+        } else {
+          setPerbandinganData(null)
+          setPerbandinganCideraData(null)
+        }
 
         if (statusRes) setStatusLpData(statusRes.data.data)
         if (breakdownRes) setBreakdownData(breakdownRes.data.data)
@@ -1873,6 +2113,7 @@ export function DashboardPage() {
         if (jenisKendaraanRes) setJenisKendaraanData(jenisKendaraanRes.data.data)
         if (topKecamatanRes) setTopKecamatanData(topKecamatanRes.data.data)
         if (topRumahSakitRes) setTopRumahSakitData(topRumahSakitRes.data.data)
+        if (topPolresLpTerlamaRes) setTopPolresLpTerlamaData(topPolresLpTerlamaRes.data.data)
       } catch (err) {
         setError('Gagal memuat data dari server.')
       } finally {
@@ -1966,6 +2207,9 @@ export function DashboardPage() {
       trendData={trendData}
       trendLoading={trendLoading}
       trendError={trendError}
+      perbandinganData={perbandinganData}
+      perbandinganCideraData={perbandinganCideraData}
+      topPolresLpTerlamaData={topPolresLpTerlamaData}
     />
     : <UserDashboard
       filterProps={filterProps}
@@ -1987,5 +2231,8 @@ export function DashboardPage() {
       trendData={trendData}
       trendLoading={trendLoading}
       trendError={trendError}
+      perbandinganData={perbandinganData}
+      perbandinganCideraData={perbandinganCideraData}
+      topPolresLpTerlamaData={topPolresLpTerlamaData}
     />
 }

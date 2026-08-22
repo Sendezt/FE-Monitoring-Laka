@@ -328,6 +328,39 @@ export interface TrendHarianData {
   trend: TrendHarianItem[]
 }
 
+export interface PerbandinganPeriode {
+  tanggal_awal: string
+  tanggal_akhir: string
+  total_lp: number
+  total_korban: number
+}
+
+export interface PerbandinganData {
+  periode_utama: PerbandinganPeriode
+  periode_pembanding: PerbandinganPeriode
+  selisih: { selisih_lp: number; selisih_korban: number }
+}
+
+export interface PerbandinganCideraPeriode {
+  tanggal_awal: string
+  tanggal_akhir: string
+  ll: number
+  ll_md: number
+  md: number
+}
+
+export interface PerbandinganCideraData {
+  periode_utama: PerbandinganCideraPeriode
+  periode_pembanding: PerbandinganCideraPeriode
+  selisih: { ll: number; ll_md: number; md: number }
+}
+
+export interface TopPolresLpTerlamaItem {
+  polres_id: number
+  nama_polres: string
+  rata_rata_telat: string
+}
+
 export const chartApi = {
   totalLakaPerWilayah: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
     api.get<ApiResponse<TotalLakaPerWilayahData>>('/api/chart/statistik/total-laka-per-wilayah', { params }),
@@ -345,6 +378,12 @@ export const chartApi = {
     api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban', { params }),
   trendHarian: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id: string }) =>
     api.get<ApiResponse<TrendHarianData>>('/api/chart/statistik/trend-harian', { params }),
+  perbandingan: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<PerbandinganData>>('/api/chart/perbandingan', { params }),
+  perbandinganCidera: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<PerbandinganCideraData>>('/api/chart/perbandingan-cidera', { params }),
+  topPolresLpTerlama: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TopPolresLpTerlamaItem[]>>('/api/chart/statistik/top-10-polres-lp-terlama', { params }),
 }
 
 // ─── Migrasi (Google Sheets) ───────────────────────────────────────────────────

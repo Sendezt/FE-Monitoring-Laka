@@ -636,20 +636,29 @@ function SummaryCard({ label, value, tone, active, onClick }: { label: string; v
   )
 }
 
-function DetailField({ label, value, invalid }: { label: string; value?: string | number | null; invalid?: boolean }) {
-  const display = value === null || value === undefined || value === '' ? '—' : String(value)
+function DetailField({ label, value, invalid, warnEmpty }: { label: string; value?: string | number | null; invalid?: boolean; warnEmpty?: boolean }) {
+  const isEmpty = value === null || value === undefined || value === ''
+  const display = isEmpty ? '—' : String(value)
+  const showWarn = warnEmpty && isEmpty && !invalid
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">{label}</p>
-      <p className={`mt-0.5 text-[13px] ${invalid ? 'text-rose-600 font-medium' : display === '—' ? 'text-muted-foreground' : 'text-foreground'}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70 flex items-center gap-1">
+        {label}
+        {showWarn && <AlertTriangle size={11} className="text-amber-500" />}
+      </p>
+      <p className={`mt-0.5 text-[13px] ${invalid ? 'text-rose-600 font-medium' : showWarn ? 'text-amber-600' : display === '—' ? 'text-muted-foreground' : 'text-foreground'}`}>
         {display}
         {invalid && <span className="ml-1 text-[11px] font-normal text-amber-600">(belum terpetakan)</span>}
+        {showWarn && <span className="ml-1 text-[11px] font-normal text-amber-600">(masih kosong — opsional)</span>}
       </p>
     </div>
   )
 }
 
-// Field master yang bisa dikoreksi lewat dropdown. Kalau invalid, border kuning + teks sheet asli.
+// Field master yang bisa dikoreksi lewat dropdown.
+// - invalid (border kuning + teks merah): teks sheet ada tapi tidak match master.
+// - kosong (border kuning muda): belum dipilih, boleh diisi (opsional).
+// - terisi (teks hijau "Match").
 function EditableMasterField({
   label, currentId, currentName, sheetText, options, invalid, onChange, disabled,
 }: {
@@ -662,11 +671,12 @@ function EditableMasterField({
   onChange: (id: number | null) => void
   disabled?: boolean
 }) {
+  const isEmpty = !currentId && !invalid
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70 flex items-center gap-1">
         {label}
-        {invalid && <AlertTriangle size={11} className="text-amber-500" />}
+        {(invalid || isEmpty) && <AlertTriangle size={11} className="text-amber-500" />}
       </p>
       {invalid && sheetText && (
         <p className="mt-0.5 text-[11px] text-amber-600">Data sheet &quot;{sheetText}&quot; tidak ada di master. Pilih yang sesuai:</p>
@@ -677,12 +687,15 @@ function EditableMasterField({
           value={currentId}
           onChange={onChange}
           disabled={disabled}
-          invalid={invalid}
+          invalid={invalid || isEmpty}
           placeholder="— Pilih —"
         />
       </div>
       {!invalid && currentName && (
         <p className="mt-0.5 text-[11px] text-emerald-600">Match: {currentName}</p>
+      )}
+      {isEmpty && (
+        <p className="mt-0.5 text-[11px] text-amber-600">Masih kosong — bisa diisi (opsional)</p>
       )}
     </div>
   )
@@ -822,7 +835,7 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
             )}
           </div>
 
-          <DetailField label="Lokasi Laka" value={payload.lokasi_laka} />
+          <DetailField label="Lokasi Laka" value={payload.lokasi_laka} warnEmpty />
 
           {/* Rumah Sakit — editable (opsional), dikunci ke wilayah polres sheet */}
           {masters ? (
@@ -843,7 +856,7 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
             <DetailField label="RS Wil. Sendiri" value={mapValue(payload.rumah_sakit_id, labels?.rumah_sakit, raw.rs_sendiri)} invalid={!!raw.rs_sendiri && !payload.rumah_sakit_id} />
           )}
 
-          <DetailField label="RS Wil. Lain" value={payload.rumah_sakit_wilayah} />
+          <DetailField label="RS Wil. Lain" value={payload.rumah_sakit_wilayah} warnEmpty />
           <DetailField label="Laka Tunggal" value={payload.laka_tunggal ? 'Ya' : 'Tidak'} />
 
           {/* Kasus Tabrakan — editable */}
@@ -903,7 +916,7 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
             <DetailField label="Sifat Laka" value={mapValue(payload.sifat_laka_id, labels?.sifat_laka, raw.sifat_laka)} invalid={!!raw.sifat_laka && !payload.sifat_laka_id} />
           )}
 
-          <DetailField label="Keterangan" value={payload.keterangan} />
+          <DetailField label="Keterangan" value={payload.keterangan} warnEmpty />
         </div>
       </div>
 
@@ -1001,15 +1014,101 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
               </thead>
               <tbody>
                 {payload.korban.map((k, i) => (
-                  <tr key={i} className="border-b border-border/20 last:border-0">
-                    <td className="py-1.5 pr-3">{k.nama || '—'}</td>
-                    <td className="py-1.5 pr-3">{k.usia ?? '—'}</td>
-                    <td className="py-1.5 pr-3">{k.profesi_id ? (k.profesi_nama || `#${k.profesi_id}`) : '—'}</td>
-                    <td className="py-1.5 pr-3">{k.cidera_id ? (k.cidera_nama || `#${k.cidera_id}`) : '—'}</td>
-                    <td className="py-1.5 pr-3">{k.tindak_lanjut_id ? (k.tindak_lanjut_nama || `#${k.tindak_lanjut_id}`) : '—'}</td>
-                    <td className="py-1.5 pr-3">{k.jenis_jaminan_id ? (k.jenis_jaminan_nama || `#${k.jenis_jaminan_id}`) : '—'}</td>
-                    <td className="py-1.5 pr-3">{k.keterjaminan_id ? (k.keterjaminan_nama || `#${k.keterjaminan_id}`) : '—'}</td>
-                    <td className="py-1.5 pr-3">
+                  <tr key={i} className="border-b border-border/20 last:border-0 align-top">
+                    <td className="py-2 pr-3 font-medium">{k.nama || '—'}</td>
+                    <td className="py-2 pr-3">{k.usia ?? '—'}</td>
+
+                    {/* Profesi — editable */}
+                    <td className="py-2 pr-3 min-w-[150px]">
+                      {masters ? (
+                        <SearchableSelect
+                          options={masters.profesi}
+                          value={k.profesi_id ?? null}
+                          placeholder="— Pilih —"
+                          onChange={(id) => onEdit((p) => {
+                            const item = masters.profesi.find((x) => x.id === id)
+                            p.korban[i].profesi_id = id
+                            p.korban[i].profesi_nama = item?.nama ?? null
+                          })}
+                        />
+                      ) : (
+                        k.profesi_id ? (k.profesi_nama || `#${k.profesi_id}`) : '—'
+                      )}
+                    </td>
+
+                    {/* Cidera — editable */}
+                    <td className="py-2 pr-3 min-w-[130px]">
+                      {masters ? (
+                        <SearchableSelect
+                          options={masters.cidera}
+                          value={k.cidera_id ?? null}
+                          placeholder="— Pilih —"
+                          onChange={(id) => onEdit((p) => {
+                            const item = masters.cidera.find((x) => x.id === id)
+                            p.korban[i].cidera_id = id
+                            p.korban[i].cidera_nama = item?.nama ?? null
+                          })}
+                        />
+                      ) : (
+                        k.cidera_id ? (k.cidera_nama || `#${k.cidera_id}`) : '—'
+                      )}
+                    </td>
+
+                    {/* Tindak Lanjut — editable */}
+                    <td className="py-2 pr-3 min-w-[140px]">
+                      {masters ? (
+                        <SearchableSelect
+                          options={masters.tindakLanjut}
+                          value={k.tindak_lanjut_id ?? null}
+                          placeholder="— Pilih —"
+                          onChange={(id) => onEdit((p) => {
+                            const item = masters.tindakLanjut.find((x) => x.id === id)
+                            p.korban[i].tindak_lanjut_id = id
+                            p.korban[i].tindak_lanjut_nama = item?.nama ?? null
+                          })}
+                        />
+                      ) : (
+                        k.tindak_lanjut_id ? (k.tindak_lanjut_nama || `#${k.tindak_lanjut_id}`) : '—'
+                      )}
+                    </td>
+
+                    {/* Jenis Jaminan — editable */}
+                    <td className="py-2 pr-3 min-w-[150px]">
+                      {masters ? (
+                        <SearchableSelect
+                          options={masters.jenisJaminan}
+                          value={k.jenis_jaminan_id ?? null}
+                          placeholder="— Pilih —"
+                          onChange={(id) => onEdit((p) => {
+                            const item = masters.jenisJaminan.find((x) => x.id === id)
+                            p.korban[i].jenis_jaminan_id = id
+                            p.korban[i].jenis_jaminan_nama = item?.nama ?? null
+                          })}
+                        />
+                      ) : (
+                        k.jenis_jaminan_id ? (k.jenis_jaminan_nama || `#${k.jenis_jaminan_id}`) : '—'
+                      )}
+                    </td>
+
+                    {/* Keterjaminan — editable */}
+                    <td className="py-2 pr-3 min-w-[140px]">
+                      {masters ? (
+                        <SearchableSelect
+                          options={masters.keterjaminan}
+                          value={k.keterjaminan_id ?? null}
+                          placeholder="— Pilih —"
+                          onChange={(id) => onEdit((p) => {
+                            const item = masters.keterjaminan.find((x) => x.id === id)
+                            p.korban[i].keterjaminan_id = id
+                            p.korban[i].keterjaminan_nama = item?.nama ?? null
+                          })}
+                        />
+                      ) : (
+                        k.keterjaminan_id ? (k.keterjaminan_nama || `#${k.keterjaminan_id}`) : '—'
+                      )}
+                    </td>
+
+                    <td className="py-2 pr-3">
                       {k.kendaraan_index != null && payload.kendaraan[k.kendaraan_index]
                         ? (payload.kendaraan[k.kendaraan_index].nopol || `#${k.kendaraan_index}`)
                         : '—'}
