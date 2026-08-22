@@ -12,6 +12,7 @@ export default function RootPage() {
     init()
   }, [init])
 
+  // di bawah ini untuk cek user udah login atau belum
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!isAuthenticated && !localStorage.getItem('token')) {
