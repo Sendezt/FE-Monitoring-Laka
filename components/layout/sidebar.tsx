@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   ClipboardList, FileBarChart, LayoutDashboard, LogOut,
   Users, Activity, X, Database,
-  Shield, ChevronUp, MapPin, Monitor
+  Shield, ChevronUp, MapPin, Monitor, TableProperties
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
@@ -101,7 +101,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
             <NavLink href={`${base}/laporan-polisi`} icon={ClipboardList} label="Kelola Laporan Polisi" active={pathname.startsWith(`${base}/laporan-polisi`)} onClick={handleLinkClick} />
 
-            <NavLink href={`${base}/statistik`} icon={FileBarChart} label="Statistik" active={pathname === `${base}/statistik`} onClick={handleLinkClick} />
+            <NavLink href={`${base}/statistik`} icon={FileBarChart} label="Statistik [DEMO]" active={pathname === `${base}/statistik`} onClick={handleLinkClick} />
           </div>
         </div>
 
@@ -113,6 +113,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             </p>
             <div className="flex flex-col gap-0.5">
               <NavLink href={`${base}/monitor-polres`} icon={Monitor} label="Monitoring Data" active={pathname === `${base}/monitor-polres`} onClick={handleLinkClick} />
+              <NavLink href={`${base}/rekapitulasi`} icon={TableProperties} label="Rekapitulasi Data" active={pathname === `${base}/rekapitulasi`} onClick={handleLinkClick} />
               <NavLink href={`${base}/master-data`} icon={Database} label="Kelola Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
               <NavLink href={`${base}/users`} icon={Users} label="Kelola Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
               <NavLink href={`${base}/activity-log`} icon={Activity} label="Riwayat Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />

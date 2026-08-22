@@ -155,8 +155,30 @@ export interface KeterjaminanCardData {
   }
 }
 
+export interface RekapRow {
+  id: number
+  nama: string
+  kode_loket: string
+  wilayah: string
+  jumlah_lp: number
+  terlambat_lapor: number
+  jumlah_korban: number
+  laka_tunggal: number
+  ll: number; ll_md: number; md: number
+  terjamin: number; eg2r: number; tidak_terjamin: number
+  kt_depan_depan: number; kt_depan_samping: number; kt_depan_belakang: number
+  kt_belakang_samping: number; kt_samping_samping: number; kt_beruntun: number
+  kt_ka: number; kt_pjk: number; kt_jatuh_sendiri: number; kt_ka_pjk: number
+  pf_pelajar: number; pf_karyawan: number; pf_wiraswasta: number; pf_pns: number; pf_pedagang: number
+  pf_buruh: number; pf_pensiunan: number; pf_guru: number; pf_petani: number; pf_rumah_tangga: number
+  pf_tidak_bekerja: number; pf_supir: number; pf_lainnya: number
+  jk_a: number; jk_b: number; jk_c1: number; jk_c2: number; jk_dp: number; jk_du: number
+  jk_ep: number; jk_eu: number; jk_f: number; jk_ka: number; jk_sepeda: number; jk_pjk: number; jk_tabrak_lari: number
+  telat_1_3: number; telat_4_7: number; telat_lebih_7: number
+}
+
 export const laporanApi = {
-  list: (params?: { page?: number; limit?: number }) =>
+  list: (params?: { page?: number; limit?: number; sort_by?: string; sort_dir?: string; [key: string]: any }) =>
     api.get<PaginatedResponse<LaporanPolisi>>('/api/laporan-polisi', { params }),
   get: (id: number) => api.get<ApiResponse<LaporanPolisi>>(`/api/laporan-polisi/${id}`),
   create: (data: CreateLaporanPayload) => api.post<ApiResponse<LaporanPolisi>>('/api/laporan-polisi', data),
@@ -164,14 +186,14 @@ export const laporanApi = {
   delete: (id: number) => api.delete<ApiResponse<null>>(`/api/laporan-polisi/${id}`),
   statistikKomparasi: (p: { start1: string; end1: string; start2: string; end2: string }) =>
     api.get<ApiResponse<unknown>>('/api/laporan-polisi/statistik/komparasi', { params: p }),
-  statusLp: () => api.get<ApiResponse<{
+  statusLp: (params?: { from?: string; to?: string; polres_id?: string | number }) => api.get<ApiResponse<{
     total: number
     total_terlambat: number
     persentase_terlambat: string
     total_normal: number
     persentase_normal: string
-  }>>('/api/laporan-polisi/status-lp'),
-  breakdownTerlambat: () => api.get<ApiResponse<{
+  }>>('/api/laporan-polisi/status-lp', { params }),
+  breakdownTerlambat: (params?: { from?: string; to?: string; polres_id?: string | number }) => api.get<ApiResponse<{
     total_terlambat: number
     terlambat_1_3_hari: number
     persentase_1_3_hari: string
@@ -179,8 +201,8 @@ export const laporanApi = {
     persentase_4_7_hari: string
     terlambat_lebih_7_hari: number
     persentase_lebih_7_hari: string
-  }>>('/api/laporan-polisi/breakdown-terlambat'),
-  jenisLaka: () => api.get<ApiResponse<{
+  }>>('/api/laporan-polisi/breakdown-terlambat', { params }),
+  jenisLaka: (params?: { from?: string; to?: string; polres_id?: string | number }) => api.get<ApiResponse<{
     total_laka: number
     laka_tunggal: {
       total: number
@@ -190,15 +212,19 @@ export const laporanApi = {
       total: number
       persentase: string
     }
-  }>>('/api/laporan-polisi/statistik/jenis-laka'),
-  statistikKorban: () => api.get<ApiResponse<{
+  }>>('/api/laporan-polisi/statistik/jenis-laka', { params }),
+  statistikKorban: (params?: { from?: string; to?: string; polres_id?: string | number }) => api.get<ApiResponse<{
     total_korban: number
     cidera_LL: { total: number; persentase: string }
     cidera_LL_MD: { total: number; persentase: string }
     cidera_MD: { total: number; persentase: string }
-  }>>('/api/laporan-polisi/statistik/korban'),
-  statistikKeterjaminan: () =>
-    api.get<ApiResponse<KeterjaminanCardData>>('/api/laporan-polisi/statistik/keterjaminan'),
+  }>>('/api/laporan-polisi/statistik/korban', { params }),
+  statistikKeterjaminan: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<KeterjaminanCardData>>('/api/laporan-polisi/statistik/keterjaminan', { params }),
+  rekapitulasiPolres: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<{ rows: RekapRow[]; totals: RekapRow }>>('/api/laporan-polisi/rekapitulasi/polres', { params }),
+  rekapitulasiLoket: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<{ rows: RekapRow[]; totals: RekapRow }>>('/api/laporan-polisi/rekapitulasi/loket', { params }),
 }
 
 // ─── Chart / Statistik per Wilayah (Loket) ────────────────────────────────────
@@ -297,20 +323,20 @@ export interface TrendHarianData {
 }
 
 export const chartApi = {
-  totalLakaPerWilayah: () =>
-    api.get<ApiResponse<TotalLakaPerWilayahData>>('/api/chart/statistik/total-laka-per-wilayah'),
-  totalKorbanPerWilayah: () =>
-    api.get<ApiResponse<TotalKorbanPerWilayahData>>('/api/chart/statistik/total-korban-per-wilayah'),
-  kasusTabrak: () =>
-    api.get<ApiResponse<KasusTabrakData>>('/api/chart/statistik/kasus-tabrak'),
-  korbanPerProfesi: () =>
-    api.get<ApiResponse<ProfesiKorbanData>>('/api/chart/statistik/korban-per-profesi'),
-  korbanPerJenisKendaraan: () =>
-    api.get<ApiResponse<JenisKendaraanKorbanData>>('/api/chart/statistik/korban-per-jenis-kendaraan'),
-  topKecamatanLaka: () =>
-    api.get<ApiResponse<TopKecamatanLakaItem[]>>('/api/chart/statistik/top-20-kecamatan-laka'),
-  topRumahSakitKorban: () =>
-    api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban'),
+  totalLakaPerWilayah: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TotalLakaPerWilayahData>>('/api/chart/statistik/total-laka-per-wilayah', { params }),
+  totalKorbanPerWilayah: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TotalKorbanPerWilayahData>>('/api/chart/statistik/total-korban-per-wilayah', { params }),
+  kasusTabrak: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<KasusTabrakData>>('/api/chart/statistik/kasus-tabrak', { params }),
+  korbanPerProfesi: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<ProfesiKorbanData>>('/api/chart/statistik/korban-per-profesi', { params }),
+  korbanPerJenisKendaraan: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<JenisKendaraanKorbanData>>('/api/chart/statistik/korban-per-jenis-kendaraan', { params }),
+  topKecamatanLaka: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TopKecamatanLakaItem[]>>('/api/chart/statistik/top-20-kecamatan-laka', { params }),
+  topRumahSakitKorban: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban', { params }),
   trendHarian: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id: string }) =>
     api.get<ApiResponse<TrendHarianData>>('/api/chart/statistik/trend-harian', { params }),
 }

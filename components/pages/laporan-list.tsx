@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FilePlus2, Search, Trash2, Eye, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button, PageHeader, SILakaShell } from '@/components/si-laka-shell'
+import { ArrowDownAZ, ArrowUpAZ, ArrowUpDown } from 'lucide-react'
 import { Pagination } from '@/components/ui/pagination'
 import { laporanApi, masterApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
@@ -33,13 +34,18 @@ export function LaporanPolisiListPage() {
   const [totalItems, setTotalItems] = useState(0)
   const limit = 10
 
+  const [sortField, setSortField] = useState<'no_lp' | 'tanggal_lp' | 'tanggal_laka'>('tanggal_laka')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+
   const fetchLaporan = (pageNum: number = page, searchQuery: string = search, filterPolres: string = polresFilter) => {
     setLoading(true)
     
     // Build params object
     const params: any = { 
       page: pageNum, 
-      limit: limit
+      limit: limit,
+      sort_by: sortField,
+      sort_dir: sortOrder
     }
     
     // Gunakan parameter 'no_lp' yang sudah didukung backend
@@ -81,6 +87,24 @@ export function LaporanPolisiListPage() {
 
     return () => clearTimeout(timer)
   }, [search])
+
+  useEffect(() => {
+    fetchLaporan(page, search, polresFilter)
+  }, [sortField, sortOrder])
+
+  const toggleSort = (field: 'no_lp' | 'tanggal_lp') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')
+    } else {
+      setSortField(field)
+      setSortOrder('ASC')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field) return <ArrowUpDown size={12} className="text-muted-foreground/40" />
+    return sortOrder === 'ASC' ? <ArrowUpAZ size={14} className="text-primary" /> : <ArrowDownAZ size={14} className="text-primary" />
+  }
 
   const handleDelete = async (id: number, noLp: string) => {
     if (!confirm(`Hapus laporan ${noLp}? Tindakan ini tidak dapat dibatalkan.`)) return
@@ -161,8 +185,12 @@ export function LaporanPolisiListPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/30 text-xs text-muted-foreground border-b">
-                    <th className="px-5 py-3 text-left font-semibold">No. LP</th>
-                    <th className="px-5 py-3 text-left font-semibold">Tanggal LP</th>
+                    <th className="px-5 py-3 text-left font-semibold cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => toggleSort('no_lp')}>
+                      <div className="flex items-center gap-1.5">No. LP <SortIcon field="no_lp" /></div>
+                    </th>
+                    <th className="px-5 py-3 text-left font-semibold cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => toggleSort('tanggal_lp')}>
+                      <div className="flex items-center gap-1.5">Tanggal LP <SortIcon field="tanggal_lp" /></div>
+                    </th>
                     <th className="px-5 py-3 text-left font-semibold hidden md:table-cell">Lokasi</th>
                     <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Kendaraan</th>
                     <th className="px-5 py-3 text-left font-semibold hidden sm:table-cell">Korban</th>

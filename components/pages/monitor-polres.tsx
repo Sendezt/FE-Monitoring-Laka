@@ -322,7 +322,12 @@ export function MonitorPolresPage() {
         setLoading(true)
         setError(null)
         const [laporanRes, polresRes, kasusRes, faktorRes, sifatRes] = await Promise.all([
-          laporanApi.list({ limit: 9999 }),
+          laporanApi.list({ 
+            limit: 500, 
+            polres_id: polresFilter !== 'all' ? polresFilter : undefined,
+            from: monthFilter ? `${monthFilter}-01` : undefined,
+            to: monthFilter ? new Date(parseInt(monthFilter.split('-')[0]), parseInt(monthFilter.split('-')[1]), 0).toISOString().split('T')[0] : undefined
+          }),
           masterApi.polres.list(),
           masterApi.kasusTabrak.list(),
           masterApi.faktorPenyebab.list(),

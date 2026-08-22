@@ -231,7 +231,7 @@ export function LaporanTambahPage() {
           <SectionHeader icon={MapPin} title="Identitas & Waktu Kejadian" desc="Nomor laporan dan waktu kejadian perkara" />
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Nomor LP" required>
-              <input required value={noLp} onChange={(e) => setNoLp(e.target.value)} placeholder="LP/123/VIII/2026" className={inputClass} />
+              <input required value={noLp} onChange={(e) => setNoLp(e.target.value)} placeholder="Nomor LP" className={inputClass} />
             </Field>
             <Field label="Hari">
               <input readOnly value={weekday} className={`${inputClass} bg-muted cursor-not-allowed text-muted-foreground`} />
@@ -280,7 +280,7 @@ export function LaporanTambahPage() {
               </select>
             </Field>
             <Field label="RS Luar Wilayah (Opsional)">
-              <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Nama RS jika tidak ada di daftar" className={inputClass} />
+              <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Rumah sakit wilayah lain" className={inputClass} />
             </Field>
           </div>
         </section>
@@ -313,7 +313,7 @@ export function LaporanTambahPage() {
                     </select>
                   </Field>
                   <Field label="Nopol" required>
-                    <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="AA 1234 BB" className={inputClass} />
+                    <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="Nopol Kendaraan" className={inputClass} />
                   </Field>
                   <Field label="Masa Laku SW">
                     <input type="date" value={v.masa_laku_sw || ''} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, masa_laku_sw: e.target.value } : x))} className={inputClass} />

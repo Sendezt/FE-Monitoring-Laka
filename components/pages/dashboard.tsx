@@ -10,8 +10,9 @@ import {
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList, LineChart, Line, Legend } from 'recharts'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
-import { laporanApi, chartApi, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
+import { laporanApi, chartApi, masterApi, type MasterItem, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
+import { useFilterStore } from '@/lib/filter-store'
 import { useRoleBase } from '@/lib/role-base'
 import type {
   KasusTabrakData,
@@ -1454,6 +1455,7 @@ function KeterjaminanCards({ data }: { data: KeterjaminanCardData | null }) {
 /* ─── Admin Dashboard ──────────────────────────────────────────────────────── */
 
 function AdminDashboard({
+  filterProps,
   laporan,
   total,
   statusData,
@@ -1525,6 +1527,8 @@ function AdminDashboard({
         description="Ringkasan seluruh laporan kecelakaan lalu lintas di semua wilayah."
         action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
+
+      {filterProps && <DashboardFilterBar {...filterProps} />}
 
       <LakaMonitoringCards
         statusData={statusData}
@@ -1599,6 +1603,7 @@ function AdminDashboard({
 /* ─── User Dashboard ───────────────────────────────────────────────────────── */
 
 function UserDashboard({
+  filterProps,
   laporan,
   wilayahNama,
   total,
@@ -1663,6 +1668,8 @@ function UserDashboard({
         action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
+      {filterProps && <DashboardFilterBar {...filterProps} />}
+
       <LakaMonitoringCards
         statusData={statusData}
         breakdownData={breakdownData}
@@ -1718,19 +1725,6 @@ function UserDashboard({
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border bg-gradient-to-r from-primary/5 to-primary/0 p-5 flex items-center gap-4">
-        <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-          <BarChart2 size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">Pantau perkembangan laporan</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Gunakan menu <strong>Statistik</strong> untuk analisis lebih mendalam berdasarkan periode waktu.
-          </p>
-        </div>
-        <Link href={`${base}/statistik`} className="shrink-0 text-xs font-semibold text-primary hover:underline">Buka →</Link>
-      </div>
-
       <div className="mt-6 rounded-xl border bg-card shadow-xs overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
@@ -1745,10 +1739,63 @@ function UserDashboard({
   )
 }
 
+
+function DashboardFilterBar({
+  filterTanggalAwal, setFilterTanggalAwal,
+  filterTanggalAkhir, setFilterTanggalAkhir,
+  filterPolres, setFilterPolres,
+  polresList,
+  isAdmin
+}: any) {
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 bg-card border border-border/60 rounded-xl p-3 shadow-xs">
+      <div className="flex items-center gap-3 border border-border/80 rounded-lg px-3 py-1.5 bg-background w-full sm:w-auto">
+        <CalendarDays size={18} className="text-primary/70 shrink-0" />
+        <div className="flex flex-col">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Tanggal Awal</span>
+          <input type="date" value={filterTanggalAwal} onChange={(e) => setFilterTanggalAwal(e.target.value)} className="bg-transparent border-none text-xs font-semibold focus:outline-none focus:ring-0 p-0 text-foreground" />
+        </div>
+      </div>
+      <div className="flex items-center gap-3 border border-border/80 rounded-lg px-3 py-1.5 bg-background w-full sm:w-auto">
+        <CalendarDays size={18} className="text-primary/70 shrink-0" />
+        <div className="flex flex-col">
+          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Tanggal Akhir</span>
+          <input type="date" value={filterTanggalAkhir} onChange={(e) => setFilterTanggalAkhir(e.target.value)} className="bg-transparent border-none text-xs font-semibold focus:outline-none focus:ring-0 p-0 text-foreground" />
+        </div>
+      </div>
+      {isAdmin && (
+        <div className="flex items-center gap-3 border border-border/80 rounded-lg px-3 py-1.5 bg-background w-full sm:min-w-[220px]">
+          <ShieldCheck size={18} className="text-primary/70 shrink-0" />
+          <div className="flex flex-col w-full">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Polres</span>
+            <select value={filterPolres} onChange={(e) => setFilterPolres(e.target.value)} className="bg-transparent border-none text-xs font-semibold focus:outline-none focus:ring-0 p-0 w-full appearance-none text-foreground cursor-pointer">
+              <option value="ALL">ALL</option>
+              {polresList.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.nama}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main ──────────────────────────────────────────────────────────────────── */
 
 export function DashboardPage() {
   const { user, init } = useAuthStore()
+  const { from, to, polres, setFrom, setTo, setPolres } = useFilterStore()
+  const [polresList, setPolresList] = useState<MasterItem[]>([])
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      masterApi.polres.list({ limit: 100 })
+        .then(res => setPolresList(res.data.data || []))
+        .catch(console.error)
+    }
+  }, [user])
+
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
   const [totalLaporan, setTotalLaporan] = useState(0)
   const [statusLpData, setStatusLpData] = useState<StatusLpCardData | null>(null)
@@ -1776,7 +1823,7 @@ export function DashboardPage() {
       try {
         setLoading(true)
 
-        const listRes = await laporanApi.list({ page: 1, limit: 1000 })
+        const listRes = await laporanApi.list({ page: 1, limit: 1000, from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined })
         setLaporan(listRes.data.data || [])
         setTotalLaporan(listRes.data.meta?.total ?? 0)
 
@@ -1794,18 +1841,18 @@ export function DashboardPage() {
           topKecamatanRes,
           topRumahSakitRes,
         ] = await Promise.all([
-          laporanApi.statusLp().catch(() => null),
-          laporanApi.breakdownTerlambat().catch(() => null),
-          laporanApi.jenisLaka().catch(() => null),
-          laporanApi.statistikKorban().catch(() => null),
-          laporanApi.statistikKeterjaminan().catch(() => null),
-          chartApi.totalLakaPerWilayah().catch(() => null),
-          chartApi.totalKorbanPerWilayah().catch(() => null),
-          chartApi.kasusTabrak().catch(() => null),
-          chartApi.korbanPerProfesi().catch(() => null),
-          chartApi.korbanPerJenisKendaraan().catch(() => null),
-          chartApi.topKecamatanLaka().catch(() => null),
-          chartApi.topRumahSakitKorban().catch(() => null),
+          laporanApi.statusLp({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          laporanApi.breakdownTerlambat({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          laporanApi.jenisLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          laporanApi.statistikKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          laporanApi.statistikKeterjaminan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.totalLakaPerWilayah({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.totalKorbanPerWilayah({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.kasusTabrak({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.korbanPerProfesi({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.korbanPerJenisKendaraan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.topKecamatanLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.topRumahSakitKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
         ])
 
         if (statusRes) setStatusLpData(statusRes.data.data)
@@ -1827,7 +1874,7 @@ export function DashboardPage() {
       }
     }
     loadData()
-  }, [])
+  }, [from, to, polres])
 
   // Fetch trend data
   useEffect(() => {
@@ -1885,8 +1932,17 @@ export function DashboardPage() {
   const isAdmin = user?.role === 'admin'
   const wilayahNama = user?.wilayah?.nama ?? ''
 
+  const filterProps = {
+    filterTanggalAwal: from, setFilterTanggalAwal: setFrom,
+    filterTanggalAkhir: to, setFilterTanggalAkhir: setTo,
+    filterPolres: polres, setFilterPolres: setPolres,
+    polresList, isAdmin
+  }
+
+
   return isAdmin
     ? <AdminDashboard
+      filterProps={filterProps}
       laporan={laporan}
       total={totalLaporan}
       statusData={statusLpData}
@@ -1906,6 +1962,7 @@ export function DashboardPage() {
       trendError={trendError}
     />
     : <UserDashboard
+      filterProps={filterProps}
       laporan={laporan}
       wilayahNama={wilayahNama}
       total={totalLaporan}
