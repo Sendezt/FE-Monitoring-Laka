@@ -5,7 +5,7 @@ import React from 'react'
 import {
   RefreshCw, Loader2, AlertCircle, ChevronDown, DatabaseZap,
   CheckCircle2, XCircle, AlertTriangle, Search, UploadCloud, FileSpreadsheet,
-  ChevronRight, Car, Users as UsersIcon, FileText, Pencil,
+  ChevronRight, Car, Users as UsersIcon, FileText, Pencil, MapPin,
 } from 'lucide-react'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
@@ -15,11 +15,12 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 const SHEET_OPTIONS = Array.from({ length: 35 }, (_, i) => String(i + 1))
 
 type KecamatanItem = MasterItem & { polres_id?: number }
+type RumahSakitItem = MasterItem & { wilayah_id?: number; wilayah?: { id: number; nama: string } }
 
 interface MigrasiMasters {
   polres: MasterItem[]
   kecamatan: KecamatanItem[]
-  rumahSakit: MasterItem[]
+  rumahSakit: RumahSakitItem[]
   kasusTabrak: MasterItem[]
   faktorPenyebab: MasterItem[]
   sifatLaka: MasterItem[]
@@ -33,7 +34,7 @@ interface MigrasiMasters {
 
 const REQUIRED_FIELDS: (keyof MigrasiPayload)[] = [
   'no_lp', 'polres_id', 'tanggal_laka', 'hari_kejadian', 'tanggal_lp',
-  'kecamatan_id', 'kelurahan_id', 'lokasi_laka',
+  'kecamatan_id', 'kelurahan_id',
 ]
 
 // Evaluasi ulang status baris di sisi klien setelah user mengedit (mirror logika backend).
@@ -54,8 +55,14 @@ function evaluateRow(payload: MigrasiPayload, raw: MigrasiRow['raw'], duplicate:
   optional.forEach(([idField, rawText, name]) => {
     if (!payload[idField] && rawText) issues.push({ field: name, value: rawText })
   })
+  // Kendaraan yang di-skip saat import:
+  // - Punya nopol tapi jenis kendaraan belum terpetakan → tandai (perlu dibetulkan agar tidak hilang).
+  // - Kosong sepenuhnya → tidak diperlakukan sebagai masalah (akan dilewati diam-diam).
   payload.kendaraan.forEach((k) => {
-    if (!k.jenis_kendaraan_id) issues.push({ field: 'jenis_kendaraan', value: k.nopol || '(kendaraan)' })
+    const hasNopol = !!(k.nopol && String(k.nopol).trim())
+    if (hasNopol && !k.jenis_kendaraan_id) {
+      issues.push({ field: 'jenis_kendaraan', value: k.nopol || '(kendaraan)' })
+    }
   })
 
   let status: MigrasiStatus = 'VALID'
@@ -116,7 +123,7 @@ export function MigrasiPage() {
   const { success, error: showError, info } = useToast()
   const [sheet, setSheet] = useState('1')
   const [startRow, setStartRow] = useState('6')
-  const [endRow, setEndRow] = useState('50')
+  const [endRow, setEndRow] = useState('200')
   const [rows, setRows] = useState<RowState[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -125,30 +132,34 @@ export function MigrasiPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [masters, setMasters] = useState<MigrasiMasters | null>(null)
   const [confirmSync, setConfirmSync] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'ALL' | MigrasiStatus | 'IMPORTED'>('ALL')
+  const [detectedPolres, setDetectedPolres] = useState<string | null>(null)
+  const [detectedPolresId, setDetectedPolresId] = useState<number | null>(null)
+  const [detectedWilayahId, setDetectedWilayahId] = useState<number | null>(null)
 
   // Muat data master untuk dropdown edit inline (sekali)
   useEffect(() => {
     let active = true
     Promise.all([
-      masterApi.polres.list(),
-      masterApi.kecamatan.list(),
-      masterApi.rumahsakit.list(),
-      masterApi.kasusTabrak.list(),
-      masterApi.faktorPenyebab.list(),
-      masterApi.sifatLaka.list(),
-      masterApi.jenisKendaraan.list(),
-      masterApi.profesi.list(),
-      masterApi.cidera.list(),
-      masterApi.tindakLanjut.list(),
-      masterApi.jenisJaminan.list(),
-      masterApi.keterjaminan.list(),
+      masterApi.polres.list({ page: 1, limit: 1000 }),
+      masterApi.kecamatan.list({ page: 1, limit: 5000 }),
+      masterApi.rumahsakit.list({ page: 1, limit: 5000 }),
+      masterApi.kasusTabrak.list({ page: 1, limit: 1000 }),
+      masterApi.faktorPenyebab.list({ page: 1, limit: 1000 }),
+      masterApi.sifatLaka.list({ page: 1, limit: 1000 }),
+      masterApi.jenisKendaraan.list({ page: 1, limit: 1000 }),
+      masterApi.profesi.list({ page: 1, limit: 1000 }),
+      masterApi.cidera.list({ page: 1, limit: 1000 }),
+      masterApi.tindakLanjut.list({ page: 1, limit: 1000 }),
+      masterApi.jenisJaminan.list({ page: 1, limit: 1000 }),
+      masterApi.keterjaminan.list({ page: 1, limit: 1000 }),
     ])
       .then((res) => {
         if (!active) return
         setMasters({
           polres: res[0].data.data || [],
           kecamatan: (res[1].data.data || []) as KecamatanItem[],
-          rumahSakit: res[2].data.data || [],
+          rumahSakit: (res[2].data.data || []) as RumahSakitItem[],
           kasusTabrak: res[3].data.data || [],
           faktorPenyebab: res[4].data.data || [],
           sifatLaka: res[5].data.data || [],
@@ -183,6 +194,9 @@ export function MigrasiPage() {
       const res = await migrasiApi.sheets({ sheet, startRow: start, endRow: end })
       const fetched = res.data.data.rows || []
       setRows(fetched.map((r) => ({ data: r, checking: false, importing: false, imported: false })))
+      setDetectedPolres(res.data.data.detected_polres ?? null)
+      setDetectedPolresId(res.data.data.detected_polres_id ?? null)
+      setDetectedWilayahId(res.data.data.detected_wilayah_id ?? null)
       setLoaded(true)
       if (fetched.length === 0) info('Tidak ada data pada rentang baris ini.')
     } catch (err) {
@@ -249,8 +263,9 @@ export function MigrasiPage() {
       success(`LP ${rs.data.no_lp} berhasil masuk database.`)
     } catch (err) {
       updateRow(rs.data.no_lp, { importing: false })
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      showError(msg || `Gagal mengimpor LP ${rs.data.no_lp}.`)
+      const resp = (err as { response?: { data?: { message?: string; errors?: string } } })?.response?.data
+      const detail = resp?.errors ? ` (${resp.errors})` : ''
+      showError((resp?.message || `Gagal mengimpor LP ${rs.data.no_lp}.`) + detail)
     }
   }
 
@@ -298,6 +313,17 @@ export function MigrasiPage() {
   )
   const validPending = rows.filter((r) => r.data.status === 'VALID' && !r.imported).length
 
+  // Sheet dianggap "tersinkron penuh" bila data sudah dimuat, ada baris,
+  // dan tidak ada lagi baris VALID yang menunggu diimpor.
+  const allSynced = loaded && rows.length > 0 && validPending === 0 && counts.imported > 0
+
+  // Terapkan filter status pada daftar yang ditampilkan
+  const visibleRows = rows.filter((r) => {
+    if (statusFilter === 'ALL') return true
+    if (statusFilter === 'IMPORTED') return r.imported
+    return !r.imported && r.data.status === statusFilter
+  })
+
   return (
     <AuthGuard adminOnly>
       <SILakaShell title="Migrasi Data" eyebrow="Administrasi">
@@ -318,6 +344,12 @@ export function MigrasiPage() {
             </select>
             <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           </div>
+
+          {allSynced && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+              <CheckCircle2 size={12} /> SYNCED
+            </span>
+          )}
 
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Baris</label>
@@ -405,13 +437,28 @@ export function MigrasiPage() {
           </div>
         )}
 
+        {/* Polres terdeteksi */}
+        {loaded && !loading && rows.length > 0 && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+            <MapPin size={15} className="shrink-0 text-primary" />
+            <p className="text-sm text-foreground">
+              Terdeteksi:{' '}
+              {detectedPolres ? (
+                <span className="font-semibold text-primary">{detectedPolres}</span>
+              ) : (
+                <span className="font-semibold text-amber-600">Tidak terdeteksi — periksa data</span>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Summary */}
         {loaded && !loading && rows.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            <SummaryCard label="Siap Insert" value={counts.VALID} tone="emerald" />
-            <SummaryCard label="Tidak Cocok" value={counts.INVALID_MASTER} tone="amber" />
-            <SummaryCard label="Duplikat" value={counts.DUPLICATE} tone="rose" />
-            <SummaryCard label="Terimpor" value={counts.imported} tone="primary" />
+            <SummaryCard label="Siap Insert" value={counts.VALID} tone="emerald" active={statusFilter === 'VALID'} onClick={() => setStatusFilter(statusFilter === 'VALID' ? 'ALL' : 'VALID')} />
+            <SummaryCard label="Tidak Cocok" value={counts.INVALID_MASTER} tone="amber" active={statusFilter === 'INVALID_MASTER'} onClick={() => setStatusFilter(statusFilter === 'INVALID_MASTER' ? 'ALL' : 'INVALID_MASTER')} />
+            <SummaryCard label="Duplikat" value={counts.DUPLICATE} tone="rose" active={statusFilter === 'DUPLICATE'} onClick={() => setStatusFilter(statusFilter === 'DUPLICATE' ? 'ALL' : 'DUPLICATE')} />
+            <SummaryCard label="Terimpor" value={counts.imported} tone="primary" active={statusFilter === 'IMPORTED'} onClick={() => setStatusFilter(statusFilter === 'IMPORTED' ? 'ALL' : 'IMPORTED')} />
           </div>
         )}
 
@@ -453,7 +500,14 @@ export function MigrasiPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((rs, idx) => {
+                {visibleRows.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      Tidak ada baris dengan status ini.
+                    </td>
+                  </tr>
+                )}
+                {visibleRows.map((rs, idx) => {
                   const r = rs.data
                   const meta = rs.imported
                     ? { label: 'Terimpor', row: 'bg-primary/5 hover:bg-primary/10', badge: 'bg-primary/15 text-primary', icon: CheckCircle2 }
@@ -537,7 +591,7 @@ export function MigrasiPage() {
                     {isOpen && (
                       <tr className="border-t border-border/40 bg-muted/20">
                         <td colSpan={9} className="px-4 py-4">
-                          <RowDetail row={r} masters={masters} onEdit={(mutate) => applyEdit(rs, mutate)} />
+                          <RowDetail row={r} masters={masters} detectedPolresId={detectedPolresId} detectedWilayahId={detectedWilayahId} onEdit={(mutate) => applyEdit(rs, mutate)} />
                         </td>
                       </tr>
                     )}
@@ -553,18 +607,32 @@ export function MigrasiPage() {
   )
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: number; tone: 'emerald' | 'amber' | 'rose' | 'primary' }) {
+function SummaryCard({ label, value, tone, active, onClick }: { label: string; value: number; tone: 'emerald' | 'amber' | 'rose' | 'primary'; active?: boolean; onClick?: () => void }) {
   const colors = {
     emerald: 'text-emerald-600 dark:text-emerald-400',
     amber: 'text-amber-600 dark:text-amber-400',
     rose: 'text-rose-600 dark:text-rose-400',
     primary: 'text-primary',
   }
+  const ring = {
+    emerald: 'ring-emerald-500/40',
+    amber: 'ring-amber-500/40',
+    rose: 'ring-rose-500/40',
+    primary: 'ring-primary/40',
+  }
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-xs">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl border bg-card p-4 shadow-xs text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer
+        ${active ? `ring-2 ${ring[tone]} border-transparent` : ''}`}
+    >
+      <p className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+        {label}
+        {active && <span className="text-[10px] font-semibold text-muted-foreground/70">difilter</span>}
+      </p>
       <p className={`mt-1 text-2xl font-bold tracking-tight ${colors[tone]}`}>{value}</p>
-    </div>
+    </button>
   )
 }
 
@@ -620,9 +688,11 @@ function EditableMasterField({
   )
 }
 
-function RowDetail({ row, masters, onEdit }: {
+function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }: {
   row: MigrasiRow
   masters: MigrasiMasters | null
+  detectedPolresId: number | null
+  detectedWilayahId: number | null
   onEdit: (mutate: (p: MigrasiPayload) => void) => void
 }) {
   const { raw, payload } = row
@@ -651,8 +721,18 @@ function RowDetail({ row, masters, onEdit }: {
     return () => { active = false }
   }, [payload.kecamatan_id])
 
-  // Kecamatan yang dipilih menentukan polres otomatis
-  const kecamatanOptions = masters?.kecamatan ?? []
+  // Dropdown kecamatan DIKUNCI ke polres yang terdeteksi (1 sheet = 1 polres).
+  // Jadi tidak muncul kecamatan dari polres lain (mis. Semarang di sheet Magelang).
+  const allKecamatan = masters?.kecamatan ?? []
+  const kecamatanOptions = detectedPolresId
+    ? allKecamatan.filter((k) => k.polres_id === detectedPolresId)
+    : allKecamatan
+
+  // Dropdown RS dikunci ke wilayah polres sheet (RS berelasi ke wilayah).
+  const allRumahSakit = masters?.rumahSakit ?? []
+  const rumahSakitOptions = detectedWilayahId
+    ? allRumahSakit.filter((rs) => rs.wilayah_id === detectedWilayahId)
+    : allRumahSakit
   const setKecamatan = (id: number | null) => {
     onEdit((p) => {
       p.kecamatan_id = id
@@ -733,24 +813,29 @@ function RowDetail({ row, masters, onEdit }: {
               />
             </div>
             {payload.kelurahan_id && labels?.kelurahan && (
-              <p className="mt-0.5 text-[11px] text-emerald-600">Match: {labels.kelurahan}</p>
+              <p className="mt-0.5 text-[11px] text-emerald-600">
+                Match: {labels.kelurahan}
+                {labels?.kelurahan_from_lokasi && (
+                  <span className="ml-1 text-sky-600">(dideteksi dari Lokasi Laka — mohon dicek)</span>
+                )}
+              </p>
             )}
           </div>
 
-          <DetailField label="Lokasi Laka" value={payload.lokasi_laka} invalid={!payload.lokasi_laka} />
+          <DetailField label="Lokasi Laka" value={payload.lokasi_laka} />
 
-          {/* Rumah Sakit — editable (opsional) */}
+          {/* Rumah Sakit — editable (opsional), dikunci ke wilayah polres sheet */}
           {masters ? (
             <EditableMasterField
               label="RS Wil. Sendiri"
               currentId={payload.rumah_sakit_id}
               currentName={labels?.rumah_sakit}
               sheetText={raw.rs_sendiri}
-              options={masters.rumahSakit}
+              options={rumahSakitOptions}
               invalid={!!raw.rs_sendiri && !payload.rumah_sakit_id}
               onChange={(id) => onEdit((p) => {
                 p.rumah_sakit_id = id
-                const rs = masters.rumahSakit.find((x) => x.id === id)
+                const rs = rumahSakitOptions.find((x) => x.id === id)
                 if (p.labels) p.labels.rumah_sakit = rs?.nama ?? null
               })}
             />
@@ -841,16 +926,26 @@ function RowDetail({ row, masters, onEdit }: {
                 </tr>
               </thead>
               <tbody>
-                {payload.kendaraan.map((k, i) => (
+                {payload.kendaraan.map((k, i) => {
+                  const hasNopol = !!(k.nopol && String(k.nopol).trim())
+                  const willSkip = !k.jenis_kendaraan_id || !hasNopol
+                  return (
                   <tr key={i} className="border-b border-border/20 last:border-0">
-                    <td className="py-1.5 pr-3 capitalize">{k.peran}</td>
+                    <td className="py-1.5 pr-3 capitalize">
+                      {k.peran}
+                      {willSkip && (
+                        <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          dilewati
+                        </span>
+                      )}
+                    </td>
                     <td className="py-1.5 pr-3">
                       {masters ? (
                         <div className="min-w-[160px]">
                           <SearchableSelect
                             options={masters.jenisKendaraan}
                             value={k.jenis_kendaraan_id}
-                            invalid={!k.jenis_kendaraan_id}
+                            invalid={hasNopol && !k.jenis_kendaraan_id}
                             clearable={false}
                             placeholder="— Pilih —"
                             onChange={(id) => {
@@ -868,12 +963,16 @@ function RowDetail({ row, masters, onEdit }: {
                         </span>
                       )}
                     </td>
-                    <td className="py-1.5 pr-3">{k.nopol || '—'}</td>
+                    <td className="py-1.5 pr-3">{k.nopol || <span className="text-muted-foreground">—</span>}</td>
                     <td className="py-1.5 pr-3">{k.masa_laku_sw || '—'}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Kendaraan tanpa nopol atau jenis kendaraan akan otomatis dilewati saat import (tidak disimpan).
+            </p>
           </div>
         )}
       </div>

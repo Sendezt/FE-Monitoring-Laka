@@ -384,6 +384,7 @@ export interface MigrasiLabels {
   polres: string | null
   kecamatan: string | null
   kelurahan: string | null
+  kelurahan_from_lokasi?: boolean
   rumah_sakit: string | null
   kasus_tabrak_kecelakaan: string | null
   faktor_penyebab_laka: string | null
@@ -446,6 +447,9 @@ export interface MigrasiSheetData {
   sheet: string
   start_row?: number
   end_row?: number
+  detected_polres?: string | null
+  detected_polres_id?: number | null
+  detected_wilayah_id?: number | null
   total?: number
   rows: MigrasiRow[]
 }

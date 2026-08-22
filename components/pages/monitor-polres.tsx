@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   TableProperties, LayoutGrid, Loader2, AlertCircle,
   Printer, FileText, Check,
-  ChevronDown
+  ChevronDown, Search, X
 } from 'lucide-react'
 import { laporanApi, masterApi, type LaporanPolisi, type MasterItem, type Korban } from '@/lib/api'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
@@ -116,11 +116,13 @@ function SpreadsheetView({ laporan, polresList, mapKasusTabrak, mapFaktorPenyeba
 
   type MonthBucket = { monthIdx: number; year: number; rows: RowData[] }
   const buckets: MonthBucket[] = []
+    // Urutkan by No LP menaik (angka): yang lama/kecil di atas, yang baru/besar di bawah.
+    // Fallback ke perbandingan string jika No LP bukan angka.
     ;[...laporan].sort((a, b) => {
-      const da = new Date(a.tanggal_laka).getTime()
-      const db = new Date(b.tanggal_laka).getTime()
-      if (isNaN(da) || isNaN(db)) return 0
-      return da - db
+      const na = parseInt(String(a.no_lp), 10)
+      const nb = parseInt(String(b.no_lp), 10)
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb
+      return String(a.no_lp).localeCompare(String(b.no_lp), undefined, { numeric: true })
     }).forEach((lap) => {
       const d = new Date(lap.tanggal_laka)
       if (isNaN(d.getTime())) return
@@ -315,6 +317,7 @@ export function MonitorPolresPage() {
   const [viewMode, setViewMode] = useState<'card' | 'spreadsheet'>('card')
   const [polresFilter, setPolresFilter] = useState<string>('all')
   const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(0, 7))
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     async function fetchData() {
@@ -358,6 +361,15 @@ export function MonitorPolresPage() {
         if (lpMonth !== monthFilter) return false
       }
     }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      const inNoLp = String(l.no_lp || '').toLowerCase().includes(q)
+      const inLokasi = String(l.lokasi_laka || '').toLowerCase().includes(q)
+      const inKec = String(l.kecamatan?.nama || '').toLowerCase().includes(q)
+      const inKel = String(l.kelurahan?.nama || '').toLowerCase().includes(q)
+      const inKorban = (l.korban || []).some((k) => String(k.nama || '').toLowerCase().includes(q))
+      if (!inNoLp && !inLokasi && !inKec && !inKel && !inKorban) return false
+    }
     return true
   })
 
@@ -390,6 +402,26 @@ export function MonitorPolresPage() {
           onChange={(e) => setMonthFilter(e.target.value)}
           className="rounded-lg border border-border/80 bg-card px-3 py-2 text-sm font-medium text-foreground hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors"
         />
+
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari No LP, korban, lokasi..."
+            className="w-56 rounded-lg border border-border/80 bg-card pl-8 pr-8 py-2 text-sm font-medium text-foreground hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-colors"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/60 hover:bg-muted hover:text-foreground cursor-pointer"
+              aria-label="Hapus pencarian"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
 
         <div className="flex rounded-lg border border-border/80 bg-muted/40 p-0.5 ml-auto">
           <button
