@@ -1,0 +1,60 @@
+name: Vercel Production Deployment
+
+permissions:
+  contents: write
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  Deploy-Production:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Set git identity to owner
+        run: |
+          git config user.name "${{ secrets.OWNER_NAME }}"
+          git config user.email "${{ secrets.OWNER_EMAIL }}"
+
+      - name: Check last commit author
+        id: author
+        run: |
+          LAST_AUTHOR_EMAIL=$(git log -1 --pretty=format:%ae)
+          echo "email=$LAST_AUTHOR_EMAIL" >> $GITHUB_OUTPUT
+
+      - name: Update README with last commit marker
+        if: ${{ steps.author.outputs.email != env.OWNER_EMAIL }}
+        run: |
+          PREV_COMMIT_MSG=$(git log -2 --pretty=format:%s | tail -n 1)
+          MARKER="[LAST COMMIT FOR VERCEL PRODUCTION] $PREV_COMMIT_MSG"
+
+          sed -i '/\[LAST COMMIT FOR VERCEL PRODUCTION\]/d' README.md
+          echo "" >> README.md
+          echo "$MARKER" >> README.md
+
+          git add README.md
+          git commit -m "chore(bot): LAST COMMIT FOR VERCEL PRODUCTION"
+          git push origin main
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
