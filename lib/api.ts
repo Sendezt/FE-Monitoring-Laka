@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.datalakajr.web.id'
+// URL API diambil dari environment (.env.development untuk lokal, .env.production untuk VPS).
+// Fallback ke localhost bila variabel tidak tersedia.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export const api = axios.create({
