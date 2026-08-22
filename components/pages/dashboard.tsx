@@ -150,7 +150,13 @@ function JenisLakaPieChart({ tunggal, total }: { tunggal: number; total: number 
 
 function RecentTable({ items }: { items: LaporanPolisi[] }) {
   const base = useRoleBase()
-  return items.length === 0 ? (
+  // Urutkan berdasarkan waktu input (created_at) terbaru → "laporan yang baru masuk"
+  const recent = [...items].sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+    const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+    return tb - ta
+  }).slice(0, 5)
+  return recent.length === 0 ? (
     <div className="px-5 py-8 text-center text-sm text-muted-foreground">Belum ada laporan</div>
   ) : (
     <table className="w-full text-sm">
@@ -165,14 +171,14 @@ function RecentTable({ items }: { items: LaporanPolisi[] }) {
         </tr>
       </thead>
       <tbody>
-        {items.map((l, i) => (
+        {recent.map((l, i) => (
           <tr key={l.id} className={`hover:bg-muted/10 transition-colors border-t ${i % 2 === 1 ? 'bg-muted/5' : ''}`}>
             <td className="px-5 py-3 text-muted-foreground text-xs">
               {i + 1}
             </td>
             <td className="px-5 py-3">
               <Link href={`${base}/laporan-polisi/${l.id}`} className="font-mono text-xs font-semibold text-primary hover:underline">
-                {l.no_lp}
+                {l.no_lp}{l.polres?.nama ? ` / ${l.polres.nama}` : ''}
               </Link>
             </td>
             <td className="px-5 py-3 text-muted-foreground hidden sm:table-cell text-xs">{formatDate(l.tanggal_laka)}</td>
@@ -1594,7 +1600,7 @@ function AdminDashboard({
           </div>
           <Link href={`${base}/laporan-polisi`} className="text-xs font-semibold text-primary hover:underline">Lihat semua →</Link>
         </div>
-        <RecentTable items={laporan.slice(0, 5)} />
+        <RecentTable items={laporan} />
       </div>
     </SILakaShell>
   )
@@ -1733,7 +1739,7 @@ function UserDashboard({
           </div>
           <Link href={`${base}/laporan-polisi`} className="text-xs font-semibold text-primary hover:underline">Lihat semua →</Link>
         </div>
-        <RecentTable items={laporan.slice(0, 5)} />
+        <RecentTable items={laporan} />
       </div>
     </SILakaShell>
   )

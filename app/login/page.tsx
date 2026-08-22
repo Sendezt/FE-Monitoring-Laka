@@ -10,7 +10,7 @@ import { Eye, EyeOff, Shield, Loader2, Lock } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const { login, user, isAuthenticated, init } = useAuthStore()
-  const { error: showError } = useToast()
+  const { success: showSuccess, error: showError } = useToast()
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -31,19 +31,36 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!username.trim() || !password.trim()) return
+    if (!username.trim() || !password.trim()) {
+      showError('Username dan kata sandi wajib diisi.')
+      return
+    }
 
     setLoading(true)
     try {
       const res = await authApi.login(username.trim(), password)
       if (res.data.success) {
-        login(res.data.data.token, res.data.data.user)
-        router.replace(res.data.data.user.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
+        const loggedUser = res.data.data.user
+        login(res.data.data.token, loggedUser)
+        const nama = loggedUser.nama_lengkap || loggedUser.username
+        showSuccess(`Selamat datang, ${nama}!`)
+        router.replace(loggedUser.role === 'admin' ? '/admin/dashboard' : '/user/dashboard')
+      } else {
+        showError(res.data.message || 'Login gagal. Periksa kembali data Anda.')
       }
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Login gagal. Periksa username dan password Anda.'
+      const status = (err as { response?: { status?: number } })?.response?.status
+      const serverMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      let msg: string
+      if (status === 401 || status === 400) {
+        msg = serverMsg || 'Username atau kata sandi salah.'
+      } else if (status === 403) {
+        msg = serverMsg || 'Akun Anda tidak memiliki akses.'
+      } else if (status === undefined) {
+        msg = 'Tidak dapat terhubung ke server. Periksa koneksi Anda.'
+      } else {
+        msg = serverMsg || 'Terjadi kesalahan saat login. Silakan coba lagi.'
+      }
       showError(msg)
     } finally {
       setLoading(false)

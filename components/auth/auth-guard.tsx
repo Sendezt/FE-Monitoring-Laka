@@ -15,7 +15,7 @@ export function AuthGuard({ children, adminOnly = false }: { children: React.Rea
   useEffect(() => {
     if (!isAuthenticated && !localStorage.getItem('token')) {
       router.replace('/login')
-    } else if (adminOnly && user?.role !== 'admin') {
+    } else if (adminOnly && user && user.role !== 'admin') {
       router.replace('/')
     }
   }, [isAuthenticated, user, adminOnly, router])

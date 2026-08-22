@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import Link from 'next/link'
 
 interface VehicleForm { id?: number; peran: 'korban' | 'penjamin'; jenis_kendaraan_id: string; nopol: string; masa_laku_sw?: string }
@@ -148,7 +149,7 @@ export function LaporanEditPage() {
       setVehicles((data.kendaraan || []).map(v => ({
         id: v.id,
         peran: v.peran,
-        jenis_kendaraan_id: v.jenis_kendaraan_id ? String(v.jenis_kendaraan_id) : (v.jenis_kendaraan?.id ? String(v.jenis_kendaraan.id) : ''),
+        jenis_kendaraan_id: v.jenis_kendaraan_id ? String(v.jenis_kendaraan_id) : (v.jenisKendaraan?.id ? String(v.jenisKendaraan.id) : ''),
         nopol: v.nopol,
         masa_laku_sw: v.masa_laku_sw ? v.masa_laku_sw.slice(0, 10) : ''
       })))
@@ -172,8 +173,7 @@ export function LaporanEditPage() {
     .finally(() => setLoading(false))
   }, [reportId, user?.wilayah_id, showError])
 
-  const handleKecamatanChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const val = e.target.value
+  const handleKecamatanChange = (val: string) => {
     setKecamatanId(val)
     if (!val) {
       setKelurahan([])
@@ -296,25 +296,34 @@ export function LaporanEditPage() {
           <SectionHeader icon={MapPin} title="Lokasi Kejadian" desc="Wilayah dan tempat kejadian perkara" />
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Kecamatan" required>
-              <select required value={kecamatanId} onChange={handleKecamatanChange} className={selectClass}>
-                <option value="">Pilih kecamatan</option>
-                {kecamatan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={kecamatan}
+                value={kecamatanId}
+                onChange={(id) => handleKecamatanChange(id ? String(id) : '')}
+                placeholder="Pilih kecamatan"
+                clearable={false}
+              />
             </Field>
             <Field label="Kelurahan" required>
-              <select required value={kelurahanId} onChange={(e) => setKelurahanId(e.target.value)} disabled={!kecamatanId} className={`${selectClass} disabled:cursor-not-allowed disabled:opacity-50`}>
-                <option value="">{kecamatanId ? 'Pilih kelurahan' : 'Pilih kecamatan dahulu'}</option>
-                {kelurahan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={kelurahan}
+                value={kelurahanId}
+                onChange={(id) => setKelurahanId(id ? String(id) : '')}
+                placeholder={kecamatanId ? 'Pilih kelurahan' : 'Pilih kecamatan dahulu'}
+                disabled={!kecamatanId}
+                clearable={false}
+              />
             </Field>
             <Field label="Jalan / Tempat Kejadian" required>
               <input required value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Jl. Slamet Riyadi No. 10" className={inputClass} />
             </Field>
             <Field label="Rumah Sakit">
-              <select value={rumahSakitId} onChange={(e) => setRumahSakitId(e.target.value)} className={selectClass}>
-                <option value="">Pilih rumah sakit</option>
-                {rumahSakit.map((r) => <option key={r.id} value={r.id}>{r.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={rumahSakit}
+                value={rumahSakitId}
+                onChange={(id) => setRumahSakitId(id ? String(id) : '')}
+                placeholder="Pilih rumah sakit"
+              />
             </Field>
             <Field label="RS Luar Wilayah (Opsional)">
               <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Nama RS jika tidak ada di daftar" className={inputClass} />
@@ -327,22 +336,28 @@ export function LaporanEditPage() {
           <SectionHeader icon={ShieldAlert} title="Klasifikasi Kejadian" desc="Jenis, faktor, dan tindak lanjut kejadian" />
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Sifat Laka">
-              <select value={sifatLakaId} onChange={(e) => setSifatLakaId(e.target.value)} className={selectClass}>
-                <option value="">Pilih sifat laka</option>
-                {sifatLaka.map((s) => <option key={s.id} value={s.id}>{s.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={sifatLaka}
+                value={sifatLakaId}
+                onChange={(id) => setSifatLakaId(id ? String(id) : '')}
+                placeholder="Pilih sifat laka"
+              />
             </Field>
             <Field label="Faktor Penyebab">
-              <select value={faktorId} onChange={(e) => setFaktorId(e.target.value)} className={selectClass}>
-                <option value="">Pilih faktor penyebab</option>
-                {faktorPenyebab.map((f) => <option key={f.id} value={f.id}>{f.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={faktorPenyebab}
+                value={faktorId}
+                onChange={(id) => setFaktorId(id ? String(id) : '')}
+                placeholder="Pilih faktor penyebab"
+              />
             </Field>
             <Field label="Kasus Tabrak">
-              <select value={kasusId} onChange={(e) => setKasusId(e.target.value)} className={selectClass}>
-                <option value="">Pilih kasus tabrak</option>
-                {kasusTabrak.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-              </select>
+              <SearchableSelect
+                options={kasusTabrak}
+                value={kasusId}
+                onChange={(id) => setKasusId(id ? String(id) : '')}
+                placeholder="Pilih kasus tabrak"
+              />
             </Field>
             <Field label="Laka Tunggal">
               <div className="flex items-center gap-2 pt-1">
@@ -378,10 +393,13 @@ export function LaporanEditPage() {
                     </select>
                   </Field>
                   <Field label="Jenis Kendaraan" required>
-                    <select required value={v.jenis_kendaraan_id} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih jenis</option>
-                      {jenisKendaraan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={jenisKendaraan}
+                      value={v.jenis_kendaraan_id}
+                      onChange={(id) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih jenis"
+                      clearable={false}
+                    />
                   </Field>
                   <Field label="Nopol" required>
                     <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="AA 1234 BB" className={inputClass} />
@@ -420,16 +438,20 @@ export function LaporanEditPage() {
                     <input required type="number" min="0" max="120" value={v.usia} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, usia: e.target.value } : x))} placeholder="35" className={inputClass} />
                   </Field>
                   <Field label="Profesi">
-                    <select value={v.profesi_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih profesi</option>
-                      {profesi.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={profesi}
+                      value={v.profesi_id}
+                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih profesi"
+                    />
                   </Field>
                   <Field label="Jenis Cidera">
-                    <select value={v.cidera_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih cidera</option>
-                      {cidera.map((c) => <option key={c.id} value={c.id}>{c.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={cidera}
+                      value={v.cidera_id}
+                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih cidera"
+                    />
                   </Field>
                   <Field label="Kendaraan (index)">
                     <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
@@ -437,22 +459,28 @@ export function LaporanEditPage() {
                     </select>
                   </Field>
                   <Field label="Tindak Lanjut">
-                    <select value={v.tindak_lanjut_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, tindak_lanjut_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih tindak lanjut</option>
-                      {tindakLanjut.map((t) => <option key={t.id} value={t.id}>{t.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={tindakLanjut}
+                      value={v.tindak_lanjut_id}
+                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, tindak_lanjut_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih tindak lanjut"
+                    />
                   </Field>
                   <Field label="Jenis Jaminan">
-                    <select value={v.jenis_jaminan_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, jenis_jaminan_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih jenis jaminan</option>
-                      {jenisJaminan.map((j) => <option key={j.id} value={j.id}>{j.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={jenisJaminan}
+                      value={v.jenis_jaminan_id}
+                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, jenis_jaminan_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih jenis jaminan"
+                    />
                   </Field>
                   <Field label="Keterjaminan">
-                    <select value={v.keterjaminan_id} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, keterjaminan_id: e.target.value } : x))} className={selectClass}>
-                      <option value="">Pilih keterjaminan</option>
-                      {keterjaminan.map((k) => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                    </select>
+                    <SearchableSelect
+                      options={keterjaminan}
+                      value={v.keterjaminan_id}
+                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, keterjaminan_id: id ? String(id) : '' } : x))}
+                      placeholder="Pilih keterjaminan"
+                    />
                   </Field>
                 </div>
               </div>

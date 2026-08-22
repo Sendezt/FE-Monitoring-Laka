@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   ClipboardList, FileBarChart, LayoutDashboard, LogOut,
   Users, Activity, X, Database,
-  Shield, ChevronUp, MapPin, Monitor, TableProperties
+  Shield, ChevronUp, MapPin, Monitor, TableProperties, FileSpreadsheet, BookOpen
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
@@ -115,11 +115,22 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               <NavLink href={`${base}/monitor-polres`} icon={Monitor} label="Monitoring Data" active={pathname === `${base}/monitor-polres`} onClick={handleLinkClick} />
               <NavLink href={`${base}/rekapitulasi`} icon={TableProperties} label="Rekapitulasi Data" active={pathname === `${base}/rekapitulasi`} onClick={handleLinkClick} />
               <NavLink href={`${base}/master-data`} icon={Database} label="Kelola Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
+              <NavLink href={`${base}/migrasi`} icon={FileSpreadsheet} label="Migrasi Data" active={pathname === `${base}/migrasi`} onClick={handleLinkClick} />
               <NavLink href={`${base}/users`} icon={Users} label="Kelola Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
               <NavLink href={`${base}/activity-log`} icon={Activity} label="Riwayat Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />
             </div>
           </div>
         )}
+
+        {/* Bantuan */}
+        <div>
+          <p className="px-3 pb-2 text-[9px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/35">
+            Bantuan
+          </p>
+          <div className="flex flex-col gap-0.5">
+            <NavLink href={`${base}/panduan`} icon={BookOpen} label="Panduan Penggunaan" active={pathname === `${base}/panduan`} onClick={handleLinkClick} />
+          </div>
+        </div>
       </nav>
 
       {/* ── Profile Footer ── */}

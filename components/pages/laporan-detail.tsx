@@ -104,7 +104,7 @@ export function LaporanDetailPage() {
             </div>
             <div>
               <h2 className="font-black text-xl tracking-tight">{laporan.no_lp}</h2>
-              <p className="text-xs text-muted-foreground">{laporan.hari_kejadian}, {formatDate(laporan.tanggal_laka)}</p>
+              <p className="text-xs text-muted-foreground">{laporan.hari_kejadian}, {formatDate(laporan.tanggal_lp)}</p>
             </div>
             <span className={`ml-auto inline-flex rounded-full px-3 py-1 text-xs font-semibold ${laporan.laka_tunggal ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
               {laporan.laka_tunggal ? 'Laka Tunggal' : 'Multi Pihak'}

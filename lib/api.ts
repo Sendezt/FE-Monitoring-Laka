@@ -24,7 +24,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    const url: string = error.config?.url || ''
+    const isAuthEndpoint = url.includes('/api/auth/login')
+    // Jangan auto-redirect saat request login gagal (biarkan halaman login
+    // menampilkan notifikasi kesalahan sendiri). Redirect hanya untuk sesi
+    // yang kedaluwarsa pada request lain.
+    if (error.response?.status === 401 && !isAuthEndpoint && typeof window !== 'undefined') {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
@@ -339,6 +344,126 @@ export const chartApi = {
     api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban', { params }),
   trendHarian: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id: string }) =>
     api.get<ApiResponse<TrendHarianData>>('/api/chart/statistik/trend-harian', { params }),
+}
+
+// ─── Migrasi (Google Sheets) ───────────────────────────────────────────────────
+
+export interface MigrasiIssue {
+  field: string
+  value: string
+}
+
+export type MigrasiStatus = 'VALID' | 'INVALID_MASTER' | 'DUPLICATE'
+
+export interface MigrasiKendaraanPayload {
+  peran: 'korban' | 'penjamin'
+  jenis_kendaraan_id: number | null
+  jenis_kendaraan_nama?: string | null
+  nopol: string
+  masa_laku_sw: string | null
+}
+
+export interface MigrasiKorbanPayload {
+  nama: string
+  usia: number | null
+  profesi_id: number | null
+  profesi_nama?: string | null
+  cidera_id: number | null
+  cidera_nama?: string | null
+  kendaraan_index: number | null
+  tindak_lanjut_id: number | null
+  tindak_lanjut_nama?: string | null
+  jenis_jaminan_id: number | null
+  jenis_jaminan_nama?: string | null
+  keterjaminan_id: number | null
+  keterjaminan_nama?: string | null
+}
+
+export interface MigrasiLabels {
+  polres: string | null
+  kecamatan: string | null
+  kelurahan: string | null
+  rumah_sakit: string | null
+  kasus_tabrak_kecelakaan: string | null
+  faktor_penyebab_laka: string | null
+  sifat_laka: string | null
+}
+
+export interface MigrasiPayload {
+  no_lp: string
+  polres_id: number | null
+  tanggal_laka: string | null
+  hari_kejadian: string | null
+  tanggal_lp: string | null
+  kecamatan_id: number | null
+  kelurahan_id: number | null
+  lokasi_laka: string
+  rumah_sakit_id: number | null
+  rumah_sakit_wilayah: string | null
+  laka_tunggal: boolean
+  kasus_tabrak_kecelakaan_id: number | null
+  faktor_penyebab_laka_id: number | null
+  sifat_laka_id: number | null
+  keterangan: string | null
+  kendaraan: MigrasiKendaraanPayload[]
+  korban: MigrasiKorbanPayload[]
+  labels?: MigrasiLabels
+}
+
+export interface MigrasiRawLaporan {
+  no_lp: string
+  tanggal_laka: string
+  tanggal_lp: string
+  kecamatan: string
+  kelurahan: string
+  lokasi_laka: string
+  rs_sendiri: string
+  rs_lain: string
+  laka_tunggal: string
+  kasus_tabrakan: string
+  faktor_penyebab: string
+  sifat_laka: string
+  keterangan: string
+  hari: string
+  hari_kejadian: string
+  nomor_urut: number
+  [key: string]: unknown
+}
+
+export interface MigrasiRow {
+  no_lp: string
+  nomor_urut: number
+  status: MigrasiStatus
+  duplicate: boolean
+  missing_fields: string[]
+  issues: MigrasiIssue[]
+  raw: MigrasiRawLaporan
+  payload: MigrasiPayload
+}
+
+export interface MigrasiSheetData {
+  sheet: string
+  start_row?: number
+  end_row?: number
+  total?: number
+  rows: MigrasiRow[]
+}
+
+export interface MigrasiCheckResult {
+  no_lp: string
+  status: MigrasiStatus
+  insertable: boolean
+  duplicate: boolean
+  missing_fields: string[]
+}
+
+export const migrasiApi = {
+  sheets: (params?: { sheet?: string | number; startRow?: number; endRow?: number }) =>
+    api.get<ApiResponse<MigrasiSheetData>>('/api/migrasi/sheets', { params }),
+  check: (payload: MigrasiPayload) =>
+    api.post<ApiResponse<MigrasiCheckResult>>('/api/migrasi/check', { payload }),
+  import: (payload: MigrasiPayload) =>
+    api.post<ApiResponse<LaporanPolisi>>('/api/migrasi/import', { payload }),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
