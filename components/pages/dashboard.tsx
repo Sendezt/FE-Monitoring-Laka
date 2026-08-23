@@ -480,21 +480,22 @@ function VerticalDetailBarChart({
 
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 56 }} barSize={24}>
+      <BarChart data={data} margin={{ top: 16, right: 8, left: 24, bottom: 8 }} barSize={16}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
         <XAxis
           dataKey="name"
           interval={0}
-          height={64}
+          height={48}
           tickLine={false}
           axisLine={false}
           tick={<LoketAxisTick />}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
           allowDecimals={false}
           axisLine={false}
           tickLine={false}
+          width={35}
         />
         <Tooltip
           formatter={(value: number, name: string, props: any) => {
@@ -503,8 +504,8 @@ function VerticalDetailBarChart({
           }}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
-        <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]}>
-          <LabelList dataKey="value" position="insideTop" fontSize={10} fontWeight="bold" fill={labelColor} />
+        <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]}>
+          <LabelList dataKey="value" position="top" fontSize={9} fontWeight="bold" fill="var(--foreground)" />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -537,8 +538,8 @@ function HorizontalDetailBarChart({
       <BarChart
         data={sorted}
         layout="vertical"
-        margin={{ top: 8, right: 24, left: 80, bottom: 8 }}
-        barSize={16}
+        margin={{ top: 8, right: 32, left: 12, bottom: 8 }}
+        barSize={14}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
         <XAxis
@@ -554,7 +555,8 @@ function HorizontalDetailBarChart({
           tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
           axisLine={false}
           tickLine={false}
-          width={80}
+          width={100}
+          tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 18)}…` : v)}
         />
         <Tooltip
           formatter={(value: number, name: string, props: any) => {
@@ -563,7 +565,7 @@ function HorizontalDetailBarChart({
           }}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
-        <Bar dataKey="value" fill={color} radius={[0, 5, 5, 0]}>
+        <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]}>
           <LabelList dataKey="value" position="right" fontSize={10} fontWeight="bold" fill="var(--foreground)" />
         </Bar>
       </BarChart>
@@ -587,32 +589,43 @@ function TopKecamatanBarChart({
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 80 }} barSize={20}>
+      <BarChart data={data} margin={{ top: 16, right: 8, left: 24, bottom: 8 }} barSize={16}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
         <XAxis
           dataKey="name"
           interval={0}
-          height={80}
+          height={48}
           tickLine={false}
           axisLine={false}
           tick={<LoketAxisTick />}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
           allowDecimals={false}
           axisLine={false}
           tickLine={false}
+          width={35}
         />
         <Tooltip
           formatter={(value: number) => [`${value} laka`, 'Total']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
-        <Bar dataKey="value" fill="#f59e0b" radius={[5, 5, 0, 0]}>
-          <LabelList dataKey="value" position="insideTop" fontSize={10} fontWeight="bold" fill="#ffffff" />
+        <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 0, 0]}>
+          <LabelList dataKey="value" position="top" fontSize={9} fontWeight="bold" fill="var(--foreground)" />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
+}
+
+function cleanHospitalName(name: string): string {
+  if (!name) return ''
+  return name
+    .replace(/[\r\n]+/g, ' ')               // Replace newlines with spaces
+    .replace(/\s+/g, ' ')                  // Replace multiple spaces with a single space
+    .replace(/,\s*KAB\.\s*[A-Z\s]+/gi, '') // Strip ", KAB. GROBOGAN" or similar
+    .replace(/\bKAB\.\s+[A-Z\s]+/gi, '')    // Strip "KAB. GROBOGAN" or similar
+    .trim()
 }
 
 function TopRumahSakitBarChart({
@@ -629,14 +642,20 @@ function TopRumahSakitBarChart({
     )
   }
 
-  const sorted = [...data].sort((a, b) => b.value - a.value)
+  // Clean names and sort
+  const sorted = [...data]
+    .map((item) => ({
+      ...item,
+      name: cleanHospitalName(item.name),
+    }))
+    .sort((a, b) => b.value - a.value)
 
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={sorted}
         layout="vertical"
-        margin={{ top: 8, right: 24, left: 120, bottom: 8 }}
+        margin={{ top: 8, right: 32, left: 12, bottom: 8 }}
         barSize={14}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -653,13 +672,14 @@ function TopRumahSakitBarChart({
           tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
           axisLine={false}
           tickLine={false}
-          width={120}
+          width={100}
+          tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 18)}…` : v)}
         />
         <Tooltip
           formatter={(value: number) => [`${value} korban`, 'Total']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
-        <Bar dataKey="value" fill="#3b82f6" radius={[0, 5, 5, 0]}>
+        <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]}>
           <LabelList dataKey="value" position="right" fontSize={10} fontWeight="bold" fill="var(--foreground)" />
         </Bar>
       </BarChart>
@@ -690,7 +710,7 @@ function TopPolresBarChart({
       <BarChart
         data={sorted}
         layout="vertical"
-        margin={{ top: 8, right: 48, left: 100, bottom: 8 }}
+        margin={{ top: 8, right: 48, left: 4, bottom: 8 }}
         barSize={18}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -707,8 +727,8 @@ function TopPolresBarChart({
           tick={{ fontSize: 10, fill: 'var(--muted-foreground)', fontWeight: 600 }}
           axisLine={false}
           tickLine={false}
-          width={100}
-          tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 14)}…` : v)}
+          width={90}
+          tickFormatter={(v: string) => (v.length > 12 ? `${v.slice(0, 12)}…` : v)}
         />
         <Tooltip
           formatter={(value: number) => [`${value} laka`, 'Total']}
@@ -1688,7 +1708,7 @@ function TopLpTerlamaBarChart({ data }: { data: { nama: string; avgTelat: number
       <BarChart
         data={chartData}
         layout="vertical"
-        margin={{ top: 8, right: 56, left: 100, bottom: 8 }}
+        margin={{ top: 8, right: 56, left: 4, bottom: 8 }}
         barSize={18}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
@@ -1706,8 +1726,8 @@ function TopLpTerlamaBarChart({ data }: { data: { nama: string; avgTelat: number
           tick={{ fontSize: 10, fill: 'var(--muted-foreground)', fontWeight: 600 }}
           axisLine={false}
           tickLine={false}
-          width={100}
-          tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 14)}…` : v)}
+          width={90}
+          tickFormatter={(v: string) => (v.length > 12 ? `${v.slice(0, 12)}…` : v)}
         />
         <Tooltip
           formatter={(value: number) => [`${value} hari`, 'Rata-rata Telat']}
