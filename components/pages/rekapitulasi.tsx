@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { CalendarDays, Download, Loader2, AlertCircle, TableProperties } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, masterApi, exportApi, type RekapRow, type MasterItem } from '@/lib/api'
+import { laporanApi, exportApi, type RekapRow, type MasterItem } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilterStore } from '@/lib/filter-store'
 import { useToast } from '@/components/ui/toast-provider'
@@ -186,14 +188,10 @@ export function RekapitulasiPage() {
   const isAdmin = user?.role === 'admin'
 
   const { from, to, polres, setFrom, setTo, setPolres } = useFilterStore()
-  const [polresList, setPolresList] = useState<MasterItem[]>([])
 
-  const [polresRows, setPolresRows] = useState<RekapRow[]>([])
-  const [polresTotals, setPolresTotals] = useState<RekapRow | null>(null)
-  const [loketRows, setLoketRows] = useState<RekapRow[]>([])
-  const [loketTotals, setLoketTotals] = useState<RekapRow | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Daftar polres = master data, di-cache 30 menit (hanya admin butuh filter ini).
+  const polresList = useMasterList('polres', { limit: 100 }, { enabled: isAdmin }).data ?? []
+
   const [exporting, setExporting] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
 
@@ -213,42 +211,35 @@ export function RekapitulasiPage() {
     }
   }
 
-  // Load polres list
-  useEffect(() => {
-    if (isAdmin) {
-      masterApi.polres.list({ limit: 100 })
-        .then(res => setPolresList(res.data.data || []))
-        .catch(console.error)
-    }
-  }, [isAdmin])
+  // Data rekapitulasi (transaksional) — di-cache 60 detik, kunci per filter.
+  const rekapParams = {
+    from: from || undefined,
+    to: to || undefined,
+    polres_id: polres !== 'ALL' ? polres : undefined,
+  }
 
-  // Load rekapitulasi data
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true)
-      setError(null)
-      const params = {
-        from: from || undefined,
-        to: to || undefined,
-        polres_id: polres !== 'ALL' ? polres : undefined,
+  const { data: rekapData, isLoading: loading, isError } = useQuery({
+    queryKey: ['rekapitulasi', rekapParams],
+    queryFn: async () => {
+      const [polresRes, loketRes] = await Promise.all([
+        laporanApi.rekapitulasiPolres(rekapParams),
+        laporanApi.rekapitulasiLoket(rekapParams),
+      ])
+      return {
+        polresRows: polresRes.data.data.rows || [],
+        polresTotals: polresRes.data.data.totals || null,
+        loketRows: loketRes.data.data.rows || [],
+        loketTotals: loketRes.data.data.totals || null,
       }
-      try {
-        const [polresRes, loketRes] = await Promise.all([
-          laporanApi.rekapitulasiPolres(params),
-          laporanApi.rekapitulasiLoket(params),
-        ])
-        setPolresRows(polresRes.data.data.rows || [])
-        setPolresTotals(polresRes.data.data.totals || null)
-        setLoketRows(loketRes.data.data.rows || [])
-        setLoketTotals(loketRes.data.data.totals || null)
-      } catch (err) {
-        setError('Gagal memuat data rekapitulasi. Pastikan server backend berjalan.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [from, to, polres])
+    },
+    staleTime: 60 * 1000,
+  })
+
+  const polresRows = rekapData?.polresRows ?? []
+  const polresTotals = rekapData?.polresTotals ?? null
+  const loketRows = rekapData?.loketRows ?? []
+  const loketTotals = rekapData?.loketTotals ?? null
+  const error = isError ? 'Gagal memuat data rekapitulasi. Pastikan server backend berjalan.' : null
 
   return (
     <SILakaShell title="Rekapitulasi Data" eyebrow="Monitoring Laka">

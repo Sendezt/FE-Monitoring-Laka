@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   TableProperties, LayoutGrid, Loader2, AlertCircle,
   Printer, FileText, Check,
   ChevronDown, Search, X, Download
 } from 'lucide-react'
-import { laporanApi, masterApi, exportApi, type LaporanPolisi, type MasterItem, type Korban } from '@/lib/api'
+import { laporanApi, exportApi, type LaporanPolisi, type MasterItem, type Korban } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
 import { useToast } from '@/components/ui/toast-provider'
 
@@ -309,10 +310,6 @@ function SpreadsheetView({ laporan, polresList, mapKasusTabrak, mapFaktorPenyeba
 
 export function MonitorPolresPage() {
   const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
-  const [polresList, setPolresList] = useState<MasterItem[]>([])
-  const [mapKasusTabrak, setMapKasusTabrak] = useState<Map<number, string>>(new Map())
-  const [mapFaktorPenyebab, setMapFaktorPenyebab] = useState<Map<number, string>>(new Map())
-  const [mapSifatLaka, setMapSifatLaka] = useState<Map<number, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'card' | 'spreadsheet'>('card')
@@ -321,6 +318,17 @@ export function MonitorPolresPage() {
   const [search, setSearch] = useState('')
   const [exporting, setExporting] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
+
+  // Master data label lookup — di-cache 30 menit via TanStack Query.
+  const polresList = useMasterList('polres').data ?? []
+  const kasusTabrakItems = useMasterList('kasusTabrak').data ?? []
+  const faktorPenyebabItems = useMasterList('faktorPenyebab').data ?? []
+  const sifatLakaItems = useMasterList('sifatLaka').data ?? []
+
+  const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
+  const mapKasusTabrak = useMemo(() => toMap(kasusTabrakItems), [kasusTabrakItems])
+  const mapFaktorPenyebab = useMemo(() => toMap(faktorPenyebabItems), [faktorPenyebabItems])
+  const mapSifatLaka = useMemo(() => toMap(sifatLakaItems), [sifatLakaItems])
 
   const handleExport = async () => {
     setExporting(true)
@@ -343,29 +351,19 @@ export function MonitorPolresPage() {
     }
   }
 
+  // Data laporan (transaksional) tetap di-fetch langsung — bukan master data.
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true)
         setError(null)
-        const [laporanRes, polresRes, kasusRes, faktorRes, sifatRes] = await Promise.all([
-          laporanApi.list({ 
-            limit: 500, 
-            polres_id: polresFilter !== 'all' ? polresFilter : undefined,
-            from: monthFilter ? `${monthFilter}-01` : undefined,
-            to: monthFilter ? new Date(parseInt(monthFilter.split('-')[0]), parseInt(monthFilter.split('-')[1]), 0).toISOString().split('T')[0] : undefined
-          }),
-          masterApi.polres.list(),
-          masterApi.kasusTabrak.list(),
-          masterApi.faktorPenyebab.list(),
-          masterApi.sifatLaka.list(),
-        ])
-        const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
+        const laporanRes = await laporanApi.list({
+          limit: 500,
+          polres_id: polresFilter !== 'all' ? polresFilter : undefined,
+          from: monthFilter ? `${monthFilter}-01` : undefined,
+          to: monthFilter ? new Date(parseInt(monthFilter.split('-')[0]), parseInt(monthFilter.split('-')[1]), 0).toISOString().split('T')[0] : undefined
+        })
         setLaporan(laporanRes.data.data)
-        setPolresList(polresRes.data.data)
-        setMapKasusTabrak(toMap(kasusRes.data.data))
-        setMapFaktorPenyebab(toMap(faktorRes.data.data))
-        setMapSifatLaka(toMap(sifatRes.data.data))
       } catch (err) {
         setError('Gagal memuat data. Silakan coba lagi.')
         console.error(err)

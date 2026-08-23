@@ -7,7 +7,8 @@ import { Loader2, AlertCircle, Trash2, Edit2, Plus, ArrowLeft } from 'lucide-rea
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader, Button, Field, inputClass } from '@/components/si-laka-shell'
 import { Pagination } from '@/components/ui/pagination'
-import { masterApi, type MasterItem } from '@/lib/api'
+import { type MasterItem } from '@/lib/api'
+import { useMasterList, useMasterMutations } from '@/lib/hooks/use-master-data'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 
@@ -49,12 +50,9 @@ export function MasterDataEntityPage() {
 function MasterDataCRUD({ entity, config }: { entity: string; config: { label: string; icon: string; apiKey: string } }) {
   const { success, error: showError } = useToast()
   const base = useRoleBase()
-  const [items, setItems] = useState<MasterItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [nama, setNama] = useState('')
-  const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [search, setSearch] = useState('')
 
@@ -62,49 +60,40 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const api = (masterApi as Record<string, any>)[config.apiKey]
-
-  const fetchItems = () => {
-    setLoading(true)
-    api
-      .list()
-      .then((res: any) => {
-        setItems(res.data?.data ?? [])
-      })
-      .catch(() => showError(`Gagal memuat ${config.label.toLowerCase()}.`))
-      .finally(() => setLoading(false))
-  }
+  // Data master ber-cache (30 menit) + auto-invalidate saat CRUD.
+  const { data: items = [], isLoading: loading, isError } = useMasterList(config.apiKey)
+  const { create, update, remove } = useMasterMutations(config.apiKey)
+  const saving = create.isPending || update.isPending
 
   useEffect(() => {
-    fetchItems()
+    if (isError) showError(`Gagal memuat ${config.label.toLowerCase()}.`)
+  }, [isError, config.label, showError])
+
+  // Reset UI state ketika berpindah entity.
+  useEffect(() => {
     setCurrentPage(1)
     setSearch('')
     setShowForm(false)
     setEditingId(null)
     setNama('')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entity])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nama.trim()) return
-    setSaving(true)
     try {
       if (editingId) {
-        await api.update(editingId, { nama })
+        await update.mutateAsync({ id: editingId, data: { nama } })
         success(`${config.label} berhasil diperbarui.`)
       } else {
-        await api.create({ nama })
+        await create.mutateAsync({ nama })
         success(`${config.label} berhasil ditambahkan.`)
       }
       setNama('')
       setEditingId(null)
       setShowForm(false)
-      fetchItems()
     } catch {
       showError(`Gagal menyimpan ${config.label.toLowerCase()}.`)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -118,9 +107,8 @@ function MasterDataCRUD({ entity, config }: { entity: string; config: { label: s
     if (!confirm(`Hapus ${config.label.toLowerCase()} ini?`)) return
     setDeleting(id)
     try {
-      await api.delete(id)
+      await remove.mutateAsync(id)
       success(`${config.label} berhasil dihapus.`)
-      fetchItems()
     } catch {
       showError(`Gagal menghapus ${config.label.toLowerCase()}.`)
     } finally {

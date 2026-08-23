@@ -4,8 +4,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react'
 import { Field, inputClass, selectClass, SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, masterApi, type MasterItem, type CreateLaporanPayload } from '@/lib/api'
+import { laporanApi, type CreateLaporanPayload } from '@/lib/api'
+import {
+  useMasterList,
+  usePolresByWilayah,
+  useKecamatanByPolres,
+  useKelurahanByKecamatan,
+  useRumahSakitByWilayah,
+} from '@/lib/hooks/use-master-data'
 import { useAuthStore } from '@/lib/auth-store'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRoleBase, useIsSuperadmin } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
@@ -59,22 +67,42 @@ export function LaporanTambahPage() {
   const { success, error: showError } = useToast()
   const base = useRoleBase()
   const isSuperadmin = useIsSuperadmin()
+  const queryClient = useQueryClient()
 
-  // Master data
-  const [polres, setPolres] = useState<MasterItem[]>([])
-  const [kecamatan, setKecamatan] = useState<MasterItem[]>([])
-  const [kelurahan, setKelurahan] = useState<MasterItem[]>([])
-  const [jenisKendaraan, setJenisKendaraan] = useState<MasterItem[]>([])
-  const [profesi, setProfesi] = useState<MasterItem[]>([])
-  const [cidera, setCidera] = useState<MasterItem[]>([])
-  const [sifatLaka, setSifatLaka] = useState<MasterItem[]>([])
-  const [faktorPenyebab, setFaktorPenyebab] = useState<MasterItem[]>([])
-  const [kasusTabrak, setKasusTabrak] = useState<MasterItem[]>([])
-  const [tindakLanjut, setTindakLanjut] = useState<MasterItem[]>([])
-  const [jenisJaminan, setJenisJaminan] = useState<MasterItem[]>([])
-  const [keterjaminan, setKeterjaminan] = useState<MasterItem[]>([])
-  const [rumahSakit, setRumahSakit] = useState<MasterItem[]>([])
-  const [masterLoading, setMasterLoading] = useState(true)
+  // Master data — di-cache 30 menit via TanStack Query, tidak fetch ulang tiap
+  // buka form. Cascading (kecamatan/kelurahan) memakai hook ber-`enabled`.
+  const wilayahId = user?.wilayah_id ?? null
+  const polresQuery = usePolresByWilayah(wilayahId)
+  const jenisKendaraanQuery = useMasterList('jenisKendaraan', { page: 1, limit: 500 })
+  const profesiQuery = useMasterList('profesi', { page: 1, limit: 500 })
+  const cideraQuery = useMasterList('cidera', { page: 1, limit: 500 })
+  const sifatLakaQuery = useMasterList('sifatLaka', { page: 1, limit: 500 })
+  const faktorPenyebabQuery = useMasterList('faktorPenyebab', { page: 1, limit: 500 })
+  const kasusTabrakQuery = useMasterList('kasusTabrak', { page: 1, limit: 500 })
+  const tindakLanjutQuery = useMasterList('tindakLanjut', { page: 1, limit: 500 })
+  const jenisJaminanQuery = useMasterList('jenisJaminan', { page: 1, limit: 500 })
+  const keterjaminanQuery = useMasterList('keterjaminan', { page: 1, limit: 500 })
+  const rumahSakitQuery = useRumahSakitByWilayah(wilayahId)
+
+  const polres = polresQuery.data ?? []
+  const jenisKendaraan = jenisKendaraanQuery.data ?? []
+  const profesi = profesiQuery.data ?? []
+  const cidera = cideraQuery.data ?? []
+  const sifatLaka = sifatLakaQuery.data ?? []
+  const faktorPenyebab = faktorPenyebabQuery.data ?? []
+  const kasusTabrak = kasusTabrakQuery.data ?? []
+  const tindakLanjut = tindakLanjutQuery.data ?? []
+  const jenisJaminan = jenisJaminanQuery.data ?? []
+  const keterjaminan = keterjaminanQuery.data ?? []
+  const rumahSakit = rumahSakitQuery.data ?? []
+
+  const masterQueries = [
+    polresQuery, jenisKendaraanQuery, profesiQuery, cideraQuery, sifatLakaQuery,
+    faktorPenyebabQuery, kasusTabrakQuery, tindakLanjutQuery, jenisJaminanQuery,
+    keterjaminanQuery, rumahSakitQuery,
+  ]
+  const masterLoading = masterQueries.some((q) => q.isLoading)
+  const masterError = masterQueries.some((q) => q.isError)
 
   // Form state
   const [noLp, setNoLp] = useState('')
@@ -147,55 +175,17 @@ export function LaporanTambahPage() {
     return Math.max(0, Math.floor((d2.getTime() - d1.getTime()) / 86400000))
   }, [tanggalLaka, tanggalLp])
 
-  // Fetch all master data once (filtered by user's wilayah)
+  // Master data referensi diambil via hooks TanStack Query di atas (ber-cache).
+  // Tampilkan notifikasi bila salah satu query gagal.
   useEffect(() => {
-    const wilayahId = user?.wilayah_id
-    Promise.all([
-      wilayahId ? masterApi.polres.listByWilayah(wilayahId, { page: 1, limit: 100 }) : Promise.resolve({ data: { data: [] } }),
-      masterApi.jenisKendaraan.list({ page: 1, limit: 500 }),
-      masterApi.profesi.list({ page: 1, limit: 500 }),
-      masterApi.cidera.list({ page: 1, limit: 500 }),
-      masterApi.sifatLaka.list({ page: 1, limit: 500 }),
-      masterApi.faktorPenyebab.list({ page: 1, limit: 500 }),
-      masterApi.kasusTabrak.list({ page: 1, limit: 500 }),
-      masterApi.tindakLanjut.list({ page: 1, limit: 500 }),
-      masterApi.jenisJaminan.list({ page: 1, limit: 500 }),
-      masterApi.keterjaminan.list({ page: 1, limit: 500 }),
-      masterApi.rumahsakit.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
-    ]).then(([pol, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs]) => {
-      setPolres(pol.data.data || [])
-      setJenisKendaraan(jk.data.data || [])
-      setProfesi(prof.data.data || [])
-      setCidera(cid.data.data || [])
-      setSifatLaka(sifat.data.data || [])
-      setFaktorPenyebab(faktor.data.data || [])
-      setKasusTabrak(kasus.data.data || [])
-      setTindakLanjut(tl.data.data || [])
-      setJenisJaminan(jj.data.data || [])
-      setKeterjaminan(ket.data.data || [])
-      setRumahSakit(rs.data.data || [])
-    }).catch(() => showError('Gagal memuat data referensi. Cek koneksi server.')).finally(() => setMasterLoading(false))
-  }, [user?.wilayah_id, showError])
+    if (masterError) showError('Gagal memuat data referensi. Cek koneksi server.')
+  }, [masterError, showError])
 
-  // Fetch kecamatan when polres changes
-  useEffect(() => {
-    if (!polresId) { setKecamatan([]); setKecamatanId(''); setKelurahan([]); setKelurahanId(''); return }
-    masterApi.kecamatan.listByPolres(Number(polresId), { page: 1, limit: 100 }).then((res) => {
-      setKecamatan(res.data.data || [])
-      setKecamatanId('')
-      setKelurahan([])
-      setKelurahanId('')
-    })
-  }, [polresId])
-
-  // Fetch kelurahan when kecamatan changes
-  useEffect(() => {
-    if (!kecamatanId) { setKelurahan([]); setKelurahanId(''); return }
-    masterApi.kelurahan(Number(kecamatanId)).then((res) => {
-      setKelurahan(res.data.data || [])
-      setKelurahanId('')
-    })
-  }, [kecamatanId])
+  // Cascading: kecamatan mengikuti polres, kelurahan mengikuti kecamatan.
+  // Data list-nya di-fetch oleh hook ber-`enabled`; di sini cukup reset pilihan
+  // anak ketika induk berubah.
+  const kecamatan = useKecamatanByPolres(polresId ? Number(polresId) : null).data ?? []
+  const kelurahan = useKelurahanByKecamatan(kecamatanId ? Number(kecamatanId) : null).data ?? []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -243,6 +233,8 @@ export function LaporanTambahPage() {
     try {
       await laporanApi.create(payload)
       success('Laporan berhasil disimpan!')
+      // Daftar laporan & dashboard perlu refresh setelah data baru masuk.
+      queryClient.invalidateQueries({ queryKey: ['laporan'] })
       router.push(`${base}/laporan-polisi`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal menyimpan laporan.'
@@ -358,10 +350,10 @@ export function LaporanTambahPage() {
                 <SectionHeader icon={MapPin} title="Lokasi Kejadian" desc="Wilayah dan tempat kejadian perkara" index={index} />
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Polres" required>
-                    <SearchableSelect options={polres} value={polresId} onChange={(id) => setPolresId(id ? String(id) : '')} placeholder="Pilih polres" clearable={false} />
+                    <SearchableSelect options={polres} value={polresId} onChange={(id) => { setPolresId(id ? String(id) : ''); setKecamatanId(''); setKelurahanId('') }} placeholder="Pilih polres" clearable={false} />
                   </Field>
                   <Field label="Kecamatan" required>
-                    <SearchableSelect options={kecamatan} value={kecamatanId} onChange={(id) => setKecamatanId(id ? String(id) : '')} placeholder={polresId ? 'Pilih kecamatan' : 'Pilih polres dahulu'} disabled={!polresId} clearable={false} />
+                    <SearchableSelect options={kecamatan} value={kecamatanId} onChange={(id) => { setKecamatanId(id ? String(id) : ''); setKelurahanId('') }} placeholder={polresId ? 'Pilih kecamatan' : 'Pilih polres dahulu'} disabled={!polresId} clearable={false} />
                   </Field>
                   <Field label="Kelurahan" required>
                     <SearchableSelect options={kelurahan} value={kelurahanId} onChange={(id) => setKelurahanId(id ? String(id) : '')} placeholder={kecamatanId ? 'Pilih kelurahan' : 'Pilih kecamatan dahulu'} disabled={!kecamatanId} clearable={false} />

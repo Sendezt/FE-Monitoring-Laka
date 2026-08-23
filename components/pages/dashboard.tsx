@@ -9,8 +9,10 @@ import {
   Users, Car, Clock
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LabelList, LineChart, Line, Legend } from 'recharts'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Button, PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
-import { laporanApi, chartApi, masterApi, type MasterItem, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
+import { laporanApi, chartApi, type MasterItem, type LaporanPolisi, type KeterjaminanCardData, type WilayahLakaItem, type WilayahKorbanItem } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilterStore } from '@/lib/filter-store'
 import { useRoleBase } from '@/lib/role-base'
@@ -2058,160 +2060,126 @@ function DashboardFilterBar({
 export function DashboardPage() {
   const { user, init } = useAuthStore()
   const { from, to, polres, setFrom, setTo, setPolres } = useFilterStore()
-  const [polresList, setPolresList] = useState<MasterItem[]>([])
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      masterApi.polres.list({ limit: 100 })
-        .then(res => setPolresList(res.data.data || []))
-        .catch(console.error)
-    }
-  }, [user])
-
-  const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
-  const [totalLaporan, setTotalLaporan] = useState(0)
-  const [statusLpData, setStatusLpData] = useState<StatusLpCardData | null>(null)
-  const [breakdownData, setBreakdownData] = useState<BreakdownCardData | null>(null)
-  const [jenisLakaData, setJenisLakaData] = useState<JenisLakaCardData | null>(null)
-  const [korbanData, setKorbanData] = useState<KorbanCardData | null>(null)
-  const [keterjaminanData, setKeterjaminanData] = useState<KeterjaminanCardData | null>(null)
-  const [lakaPerLoketData, setLakaPerLoketData] = useState<WilayahLakaItem[] | null>(null)
-  const [korbanPerLoketData, setKorbanPerLoketData] = useState<WilayahKorbanItem[] | null>(null)
-  const [kasusTabrakData, setKasusTabrakData] = useState<KasusTabrakData | null>(null)
-  const [profesiData, setProfesiData] = useState<ProfesiKorbanData | null>(null)
-  const [jenisKendaraanData, setJenisKendaraanData] = useState<JenisKendaraanKorbanData | null>(null)
-  const [topKecamatanData, setTopKecamatanData] = useState<TopKecamatanLakaItem[] | null>(null)
-  const [topRumahSakitData, setTopRumahSakitData] = useState<TopRumahSakitKorbanItem[] | null>(null)
-  const [perbandinganData, setPerbandinganData] = useState<PerbandinganData | null>(null)
-  const [perbandinganCideraData, setPerbandinganCideraData] = useState<PerbandinganCideraData | null>(null)
-  const [topPolresLpTerlamaData, setTopPolresLpTerlamaData] = useState<TopPolresLpTerlamaItem[] | null>(null)
-  const [topPolresLakaData, setTopPolresLakaData] = useState<TopPolresLakaItem[] | null>(null)
-  const [trenBulananData, setTrenBulananData] = useState<TrenBulananItem[] | null>(null)
-  const [hariKejadianData, setHariKejadianData] = useState<HariKejadianItem[] | null>(null)
-  const [trendData, setTrendData] = useState<any>(null)
-  const [trendLoading, setTrendLoading] = useState(false)
-  const [trendError, setTrendError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Daftar polres = master data, di-cache 30 menit (hanya admin butuh filter ini).
+  const polresList = useMasterList('polres', { limit: 100 }, { enabled: user?.role === 'admin' }).data ?? []
 
   useEffect(() => { init() }, [init])
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
+  // Bundle statistik dashboard — di-cache 60 detik, kunci per filter (from/to/polres).
+  // Bolak-balik antar polres dalam 60 detik memakai cache (tidak fetch ulang 16 endpoint).
+  const filterKey = { from: from || null, to: to || null, polres }
+  const p = { from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }
 
-        // Dashboard hanya butuh sedikit laporan untuk "Laporan Terbaru" (5 baris).
-        // Semua angka statistik diambil dari endpoint agregasi DB, bukan dari list ini.
-        // Ambil 10 terbaru (by created_at) sebagai buffer + fallback ringan.
-        const listRes = await laporanApi.list({ page: 1, limit: 10, sort_by: 'created_at', sort_dir: 'DESC', from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined })
-        setLaporan(listRes.data.data || [])
-        setTotalLaporan(listRes.data.meta?.total ?? 0)
+  const { data: dash, isLoading: loading, isError } = useQuery({
+    queryKey: ['dashboard', 'bundle', filterKey],
+    queryFn: async () => {
+      const listRes = await laporanApi.list({ page: 1, limit: 10, sort_by: 'created_at', sort_dir: 'DESC', ...p })
 
-        const [
-          statusRes,
-          breakdownRes,
-          jenisLakaRes,
-          korbanRes,
-          keterjaminanRes,
-          lakaPerLoketRes,
-          korbanPerLoketRes,
-          kasusTabrakRes,
-          profesiRes,
-          jenisKendaraanRes,
-          topKecamatanRes,
-          topRumahSakitRes,
-          topPolresLpTerlamaRes,
-          topPolresLakaRes,
-          trenBulananRes,
-          hariKejadianRes,
-        ] = await Promise.all([
-          laporanApi.statusLp({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          laporanApi.breakdownTerlambat({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          laporanApi.jenisLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          laporanApi.statistikKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          laporanApi.statistikKeterjaminan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.totalLakaPerWilayah({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.totalKorbanPerWilayah({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.kasusTabrak({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.korbanPerProfesi({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.korbanPerJenisKendaraan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.topKecamatanLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.topRumahSakitKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.topPolresLpTerlama({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.topPolresLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.trenBulanan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
-          chartApi.hariKejadian({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+      const [
+        statusRes, breakdownRes, jenisLakaRes, korbanRes, keterjaminanRes,
+        lakaPerLoketRes, korbanPerLoketRes, kasusTabrakRes, profesiRes,
+        jenisKendaraanRes, topKecamatanRes, topRumahSakitRes,
+        topPolresLpTerlamaRes, topPolresLakaRes, trenBulananRes, hariKejadianRes,
+      ] = await Promise.all([
+        laporanApi.statusLp(p).catch(() => null),
+        laporanApi.breakdownTerlambat(p).catch(() => null),
+        laporanApi.jenisLaka(p).catch(() => null),
+        laporanApi.statistikKorban(p).catch(() => null),
+        laporanApi.statistikKeterjaminan(p).catch(() => null),
+        chartApi.totalLakaPerWilayah(p).catch(() => null),
+        chartApi.totalKorbanPerWilayah(p).catch(() => null),
+        chartApi.kasusTabrak(p).catch(() => null),
+        chartApi.korbanPerProfesi(p).catch(() => null),
+        chartApi.korbanPerJenisKendaraan(p).catch(() => null),
+        chartApi.topKecamatanLaka(p).catch(() => null),
+        chartApi.topRumahSakitKorban(p).catch(() => null),
+        chartApi.topPolresLpTerlama(p).catch(() => null),
+        chartApi.topPolresLaka(p).catch(() => null),
+        chartApi.trenBulanan(p).catch(() => null),
+        chartApi.hariKejadian(p).catch(() => null),
+      ])
+
+      // Perbandingan 2 periode hanya bila rentang tanggal diisi.
+      let perbandinganData: PerbandinganData | null = null
+      let perbandinganCideraData: PerbandinganCideraData | null = null
+      if (from && to) {
+        const cmpParams = { tanggal_awal: from, tanggal_akhir: to, polres_id: polres !== 'ALL' ? polres : 'ALL' }
+        const [perbRes, perbCideraRes] = await Promise.all([
+          chartApi.perbandingan(cmpParams).catch(() => null),
+          chartApi.perbandinganCidera(cmpParams).catch(() => null),
         ])
-
-        // Perbandingan 2 periode (mundur 1 bulan otomatis) — pakai rentang & polres dari filter
-        if (from && to) {
-          const cmpParams = { tanggal_awal: from, tanggal_akhir: to, polres_id: polres !== 'ALL' ? polres : 'ALL' }
-          const [perbRes, perbCideraRes] = await Promise.all([
-            chartApi.perbandingan(cmpParams).catch(() => null),
-            chartApi.perbandinganCidera(cmpParams).catch(() => null),
-          ])
-          setPerbandinganData(perbRes ? perbRes.data.data : null)
-          setPerbandinganCideraData(perbCideraRes ? perbCideraRes.data.data : null)
-        } else {
-          setPerbandinganData(null)
-          setPerbandinganCideraData(null)
-        }
-
-        if (statusRes) setStatusLpData(statusRes.data.data)
-        if (breakdownRes) setBreakdownData(breakdownRes.data.data)
-        if (jenisLakaRes) setJenisLakaData(jenisLakaRes.data.data)
-        if (korbanRes) setKorbanData(korbanRes.data.data)
-        if (keterjaminanRes) setKeterjaminanData(keterjaminanRes.data.data)
-        if (lakaPerLoketRes) setLakaPerLoketData(lakaPerLoketRes.data.data.data_wilayah)
-        if (korbanPerLoketRes) setKorbanPerLoketData(korbanPerLoketRes.data.data.data_wilayah)
-        if (kasusTabrakRes) setKasusTabrakData(kasusTabrakRes.data.data)
-        if (profesiRes) setProfesiData(profesiRes.data.data)
-        if (jenisKendaraanRes) setJenisKendaraanData(jenisKendaraanRes.data.data)
-        if (topKecamatanRes) setTopKecamatanData(topKecamatanRes.data.data)
-        if (topRumahSakitRes) setTopRumahSakitData(topRumahSakitRes.data.data)
-        if (topPolresLpTerlamaRes) setTopPolresLpTerlamaData(topPolresLpTerlamaRes.data.data)
-        if (topPolresLakaRes) setTopPolresLakaData(topPolresLakaRes.data.data)
-        if (trenBulananRes) setTrenBulananData(trenBulananRes.data.data)
-        if (hariKejadianRes) setHariKejadianData(hariKejadianRes.data.data)
-      } catch (err) {
-        setError('Gagal memuat data dari server.')
-      } finally {
-        setLoading(false)
+        perbandinganData = perbRes ? perbRes.data.data : null
+        perbandinganCideraData = perbCideraRes ? perbCideraRes.data.data : null
       }
-    }
-    loadData()
-  }, [from, to, polres])
 
-  // Fetch trend data
-  useEffect(() => {
-    if (!user) return
-
-    const fetchTrend = async () => {
-      try {
-        setTrendLoading(true)
-        setTrendError(null)
-        const today = new Date()
-        const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-        const tanggalAwal = startOfPrevMonth.toISOString().split('T')[0]
-        const tanggalAkhir = today.toISOString().split('T')[0]
-        const polresId = user.role === 'admin' ? 'ALL' : user.wilayah_id?.toString() || 'ALL'
-
-        const res = await chartApi.trendHarian({
-          tanggal_awal: tanggalAwal,
-          tanggal_akhir: tanggalAkhir,
-          polres_id: polresId,
-        })
-        setTrendData(res.data.data)
-      } catch (err) {
-        setTrendError('Gagal memuat data trend')
-      } finally {
-        setTrendLoading(false)
+      return {
+        laporan: listRes.data.data || [],
+        totalLaporan: listRes.data.meta?.total ?? 0,
+        statusLpData: statusRes ? statusRes.data.data : null,
+        breakdownData: breakdownRes ? breakdownRes.data.data : null,
+        jenisLakaData: jenisLakaRes ? jenisLakaRes.data.data : null,
+        korbanData: korbanRes ? korbanRes.data.data : null,
+        keterjaminanData: keterjaminanRes ? keterjaminanRes.data.data : null,
+        lakaPerLoketData: lakaPerLoketRes ? lakaPerLoketRes.data.data.data_wilayah : null,
+        korbanPerLoketData: korbanPerLoketRes ? korbanPerLoketRes.data.data.data_wilayah : null,
+        kasusTabrakData: kasusTabrakRes ? kasusTabrakRes.data.data : null,
+        profesiData: profesiRes ? profesiRes.data.data : null,
+        jenisKendaraanData: jenisKendaraanRes ? jenisKendaraanRes.data.data : null,
+        topKecamatanData: topKecamatanRes ? topKecamatanRes.data.data : null,
+        topRumahSakitData: topRumahSakitRes ? topRumahSakitRes.data.data : null,
+        topPolresLpTerlamaData: topPolresLpTerlamaRes ? topPolresLpTerlamaRes.data.data : null,
+        topPolresLakaData: topPolresLakaRes ? topPolresLakaRes.data.data : null,
+        trenBulananData: trenBulananRes ? trenBulananRes.data.data : null,
+        hariKejadianData: hariKejadianRes ? hariKejadianRes.data.data : null,
+        perbandinganData,
+        perbandinganCideraData,
       }
-    }
+    },
+    staleTime: 60 * 1000,
+  })
 
-    fetchTrend()
-  }, [user])
+  const error = isError ? 'Gagal memuat data dari server.' : null
+
+  const laporan = dash?.laporan ?? []
+  const totalLaporan = dash?.totalLaporan ?? 0
+  const statusLpData = dash?.statusLpData ?? null
+  const breakdownData = dash?.breakdownData ?? null
+  const jenisLakaData = dash?.jenisLakaData ?? null
+  const korbanData = dash?.korbanData ?? null
+  const keterjaminanData = dash?.keterjaminanData ?? null
+  const lakaPerLoketData = dash?.lakaPerLoketData ?? null
+  const korbanPerLoketData = dash?.korbanPerLoketData ?? null
+  const kasusTabrakData = dash?.kasusTabrakData ?? null
+  const profesiData = dash?.profesiData ?? null
+  const jenisKendaraanData = dash?.jenisKendaraanData ?? null
+  const topKecamatanData = dash?.topKecamatanData ?? null
+  const topRumahSakitData = dash?.topRumahSakitData ?? null
+  const topPolresLpTerlamaData = dash?.topPolresLpTerlamaData ?? null
+  const topPolresLakaData = dash?.topPolresLakaData ?? null
+  const trenBulananData = dash?.trenBulananData ?? null
+  const hariKejadianData = dash?.hariKejadianData ?? null
+  const perbandinganData = dash?.perbandinganData ?? null
+  const perbandinganCideraData = dash?.perbandinganCideraData ?? null
+
+  // Trend harian — dependen pada user (role/wilayah), di-cache 60 detik.
+  const trendPolresId = user ? (user.role === 'admin' ? 'ALL' : user.wilayah_id?.toString() || 'ALL') : 'ALL'
+  const { data: trendData = null, isLoading: trendLoading, isError: trendIsError } = useQuery({
+    queryKey: ['dashboard', 'trendHarian', trendPolresId],
+    queryFn: async () => {
+      const today = new Date()
+      const startOfPrevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      const res = await chartApi.trendHarian({
+        tanggal_awal: startOfPrevMonth.toISOString().split('T')[0],
+        tanggal_akhir: today.toISOString().split('T')[0],
+        polres_id: trendPolresId,
+      })
+      return res.data.data
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  })
+  const trendError = trendIsError ? 'Gagal memuat data trend' : null
 
   if (loading) {
     return (

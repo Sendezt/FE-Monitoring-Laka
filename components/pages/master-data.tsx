@@ -1,15 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   Globe, ShieldCheck, MapPin, Building2, Hospital, Briefcase,
   HeartPulse, AlertTriangle, Zap, Car, FileText, CreditCard,
   CheckCircle2, Wrench, ChevronRight, Loader2
 } from 'lucide-react'
+import { useQueries } from '@tanstack/react-query'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
 import { masterApi, type MasterItem } from '@/lib/api'
+import { masterKeys } from '@/lib/hooks/use-master-data'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 
@@ -53,35 +55,34 @@ const ALL_ENTITIES = MASTER_GROUPS.flatMap((g) => g.entities)
 export function MasterDataPage() {
   const { error: showError } = useToast()
   const base = useRoleBase()
-  const [counts, setCounts] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(true)
+
+  // Ambil semua entity master via useQueries — memakai query key & cache yang sama
+  // dengan halaman detail entity (staleTime 30 menit), jadi tidak fetch ulang.
+  const queries = useQueries({
+    queries: ALL_ENTITIES.map((entity) => ({
+      queryKey: masterKeys.list(entity.key),
+      queryFn: async () => {
+        const api = (masterApi as Record<string, any>)[entity.key]
+        // Sebagian entity (mis. kelurahan) berupa fungsi tanpa .list — lewati.
+        if (!api?.list) return [] as MasterItem[]
+        const res = await api.list()
+        return (res.data?.data ?? []) as MasterItem[]
+      },
+      staleTime: 30 * 60 * 1000,
+      gcTime: 60 * 60 * 1000,
+    })),
+  })
+
+  const loading = queries.some((q) => q.isLoading)
+  const counts: Record<string, number> = {}
+  ALL_ENTITIES.forEach((entity, i) => {
+    counts[entity.key] = queries[i].data?.length ?? 0
+  })
 
   useEffect(() => {
-    const fetchCounts = async () => {
-      const newCounts: Record<string, number> = {}
-      try {
-        await Promise.all(
-          ALL_ENTITIES.map(async (entity) => {
-            try {
-              const api = (masterApi as Record<string, any>)[entity.key]
-              if (api?.list) {
-                const res = await api.list()
-                newCounts[entity.key] = res.data?.data?.length ?? 0
-              }
-            } catch {
-              // silent fail per entity
-            }
-          })
-        )
-        setCounts(newCounts)
-      } catch {
-        showError('Gagal memuat data master.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchCounts()
-  }, [showError])
+    if (queries.some((q) => q.isError)) showError('Gagal memuat data master.')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queries.map((q) => q.isError).join(',')])
 
   return (
     <AuthGuard adminOnly>

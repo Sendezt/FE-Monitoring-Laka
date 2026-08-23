@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader, SILakaShell, StatCard } from '@/components/si-laka-shell'
 import { ClipboardList, Activity, ShieldAlert, Loader2, AlertCircle } from 'lucide-react'
 import { laporanApi } from '@/lib/api'
@@ -9,8 +10,6 @@ import { useToast } from '@/components/ui/toast-provider'
 
 export function StatistikPage() {
   const { error: showError } = useToast()
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any>(null)
 
   // Default to this month vs last month
   const getFirstLastDay = (date: Date) => {
@@ -36,19 +35,24 @@ export function StatistikPage() {
   const [start2, setStart2] = useState(lastMonth.start)
   const [end2, setEnd2] = useState(lastMonth.end)
 
-  const fetchStatistik = () => {
-    setLoading(true)
-    laporanApi.statistikKomparasi({ start1, end1, start2, end2 })
-      .then((res) => {
-        setData(res.data.data)
-      })
-      .catch(() => showError('Gagal memuat data statistik komparasi.'))
-      .finally(() => setLoading(false))
-  }
+  // Periode yang benar-benar diterapkan (berubah saat klik "Terapkan").
+  const [applied, setApplied] = useState({ start1: thisMonth.start, end1: thisMonth.end, start2: lastMonth.start, end2: lastMonth.end })
+
+  // Statistik komparasi — di-cache 60 detik per kombinasi periode.
+  const { data, isLoading: loading, isFetching, isError } = useQuery({
+    queryKey: ['statistik', 'komparasi', applied],
+    queryFn: async () => {
+      const res = await laporanApi.statistikKomparasi(applied)
+      return res.data.data as any
+    },
+    staleTime: 60 * 1000,
+  })
 
   useEffect(() => {
-    fetchStatistik()
-  }, [])
+    if (isError) showError('Gagal memuat data statistik komparasi.')
+  }, [isError, showError])
+
+  const fetchStatistik = () => setApplied({ start1, end1, start2, end2 })
 
   return (
     <SILakaShell title="Statistik" eyebrow="Laporan Polisi">
@@ -71,8 +75,8 @@ export function StatistikPage() {
               <input type="date" value={end2} onChange={e => setEnd2(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" />
             </div>
           </div>
-          <button onClick={fetchStatistik} disabled={loading} className="w-full lg:w-auto h-10 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2">
-            {loading ? <Loader2 size={15} className="animate-spin" /> : 'Terapkan'}
+          <button onClick={fetchStatistik} disabled={isFetching} className="w-full lg:w-auto h-10 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2">
+            {isFetching ? <Loader2 size={15} className="animate-spin" /> : 'Terapkan'}
           </button>
         </div>
       </div>

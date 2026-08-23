@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertCircle, MapPin, Car, User, FileText, Building2, Hospital, ShieldAlert, Calendar, Clock } from 'lucide-react'
 import { SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, masterApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
+import { laporanApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { useRoleBase } from '@/lib/role-base'
 
 function formatDate(s: string) {
@@ -39,27 +40,23 @@ export function LaporanDetailPage() {
   const [laporan, setLaporan] = useState<LaporanPolisi | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mapKasusTabrak, setMapKasusTabrak] = useState<Map<number, string>>(new Map())
-  const [mapFaktorPenyebab, setMapFaktorPenyebab] = useState<Map<number, string>>(new Map())
-  const [mapSifatLaka, setMapSifatLaka] = useState<Map<number, string>>(new Map())
-  const [mapRumahSakit, setMapRumahSakit] = useState<Map<number, string>>(new Map())
 
+  // Master data label lookup — di-cache 30 menit (dipakai lintas halaman).
+  const kasusTabrakItems = useMasterList('kasusTabrak').data ?? []
+  const faktorPenyebabItems = useMasterList('faktorPenyebab').data ?? []
+  const sifatLakaItems = useMasterList('sifatLaka').data ?? []
+  const rumahSakitItems = useMasterList('rumahsakit').data ?? []
+
+  const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
+  const mapKasusTabrak = useMemo(() => toMap(kasusTabrakItems), [kasusTabrakItems])
+  const mapFaktorPenyebab = useMemo(() => toMap(faktorPenyebabItems), [faktorPenyebabItems])
+  const mapSifatLaka = useMemo(() => toMap(sifatLakaItems), [sifatLakaItems])
+  const mapRumahSakit = useMemo(() => toMap(rumahSakitItems), [rumahSakitItems])
+
+  // Data laporan bersifat spesifik per-id, tetap di-fetch langsung.
   useEffect(() => {
-    const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
-    Promise.all([
-      laporanApi.get(Number(id)),
-      masterApi.kasusTabrak.list(),
-      masterApi.faktorPenyebab.list(),
-      masterApi.sifatLaka.list(),
-      masterApi.rumahsakit.list(),
-    ])
-      .then(([laporanRes, kasusRes, faktorRes, sifatRes, rumahSakitRes]) => {
-        setLaporan(laporanRes.data.data)
-        setMapKasusTabrak(toMap(kasusRes.data.data))
-        setMapFaktorPenyebab(toMap(faktorRes.data.data))
-        setMapSifatLaka(toMap(sifatRes.data.data))
-        setMapRumahSakit(toMap(rumahSakitRes.data.data))
-      })
+    laporanApi.get(Number(id))
+      .then((laporanRes) => setLaporan(laporanRes.data.data))
       .catch(() => setError('Laporan tidak ditemukan.'))
       .finally(() => setLoading(false))
   }, [id])

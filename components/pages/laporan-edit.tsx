@@ -4,8 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save, ArrowLeft } from 'lucide-react'
 import { Field, inputClass, selectClass, SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, masterApi, type MasterItem, type CreateLaporanPayload } from '@/lib/api'
+import { laporanApi, type CreateLaporanPayload } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  useMasterList,
+  useKelurahanByKecamatan,
+  useRumahSakitByWilayah,
+} from '@/lib/hooks/use-master-data'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
@@ -56,20 +62,35 @@ export function LaporanEditPage() {
   const { user } = useAuthStore()
   const { success, error: showError } = useToast()
   const base = useRoleBase()
+  const queryClient = useQueryClient()
 
-  // Master data
-  const [kecamatan, setKecamatan] = useState<MasterItem[]>([])
-  const [kelurahan, setKelurahan] = useState<MasterItem[]>([])
-  const [jenisKendaraan, setJenisKendaraan] = useState<MasterItem[]>([])
-  const [profesi, setProfesi] = useState<MasterItem[]>([])
-  const [cidera, setCidera] = useState<MasterItem[]>([])
-  const [sifatLaka, setSifatLaka] = useState<MasterItem[]>([])
-  const [faktorPenyebab, setFaktorPenyebab] = useState<MasterItem[]>([])
-  const [kasusTabrak, setKasusTabrak] = useState<MasterItem[]>([])
-  const [tindakLanjut, setTindakLanjut] = useState<MasterItem[]>([])
-  const [jenisJaminan, setJenisJaminan] = useState<MasterItem[]>([])
-  const [keterjaminan, setKeterjaminan] = useState<MasterItem[]>([])
-  const [rumahSakit, setRumahSakit] = useState<MasterItem[]>([])
+  // Master data — di-cache 30 menit via TanStack Query (tidak fetch ulang tiap
+  // buka form). Kecamatan di-scope wilayah user; kelurahan cascading dari kecamatan.
+  const wilayahId = user?.wilayah_id ?? null
+  const kecamatanQuery = useMasterList('kecamatan', { wilayah_id: wilayahId, page: 1, limit: 500 })
+  const jenisKendaraanQuery = useMasterList('jenisKendaraan', { page: 1, limit: 500 })
+  const profesiQuery = useMasterList('profesi', { page: 1, limit: 500 })
+  const cideraQuery = useMasterList('cidera', { page: 1, limit: 500 })
+  const sifatLakaQuery = useMasterList('sifatLaka', { page: 1, limit: 500 })
+  const faktorPenyebabQuery = useMasterList('faktorPenyebab', { page: 1, limit: 500 })
+  const kasusTabrakQuery = useMasterList('kasusTabrak', { page: 1, limit: 500 })
+  const tindakLanjutQuery = useMasterList('tindakLanjut', { page: 1, limit: 500 })
+  const jenisJaminanQuery = useMasterList('jenisJaminan', { page: 1, limit: 500 })
+  const keterjaminanQuery = useMasterList('keterjaminan', { page: 1, limit: 500 })
+  const rumahSakitQuery = useRumahSakitByWilayah(wilayahId)
+
+  const kecamatan = kecamatanQuery.data ?? []
+  const jenisKendaraan = jenisKendaraanQuery.data ?? []
+  const profesi = profesiQuery.data ?? []
+  const cidera = cideraQuery.data ?? []
+  const sifatLaka = sifatLakaQuery.data ?? []
+  const faktorPenyebab = faktorPenyebabQuery.data ?? []
+  const kasusTabrak = kasusTabrakQuery.data ?? []
+  const tindakLanjut = tindakLanjutQuery.data ?? []
+  const jenisJaminan = jenisJaminanQuery.data ?? []
+  const keterjaminan = keterjaminanQuery.data ?? []
+  const rumahSakit = rumahSakitQuery.data ?? []
+
   const [loading, setLoading] = useState(true)
 
   // Form state
@@ -97,45 +118,20 @@ export function LaporanEditPage() {
     return Math.max(0, Math.floor((d2.getTime() - d1.getTime()) / 86400000))
   }, [tanggalLaka, tanggalLp])
 
-  useEffect(() => {
-    const wilayahId = user?.wilayah_id
-    Promise.all([
-      masterApi.kecamatan.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
-      masterApi.jenisKendaraan.list({ page: 1, limit: 500 }),
-      masterApi.profesi.list({ page: 1, limit: 500 }),
-      masterApi.cidera.list({ page: 1, limit: 500 }),
-      masterApi.sifatLaka.list({ page: 1, limit: 500 }),
-      masterApi.faktorPenyebab.list({ page: 1, limit: 500 }),
-      masterApi.kasusTabrak.list({ page: 1, limit: 500 }),
-      masterApi.tindakLanjut.list({ page: 1, limit: 500 }),
-      masterApi.jenisJaminan.list({ page: 1, limit: 500 }),
-      masterApi.keterjaminan.list({ page: 1, limit: 500 }),
-      masterApi.rumahsakit.list({ wilayah_id: wilayahId, page: 1, limit: 500 }),
-      laporanApi.get(reportId),
-    ]).then(([kec, jk, prof, cid, sifat, faktor, kasus, tl, jj, ket, rs, rep]) => {
-      setKecamatan(kec.data.data || [])
-      setJenisKendaraan(jk.data.data || [])
-      setProfesi(prof.data.data || [])
-      setCidera(cid.data.data || [])
-      setSifatLaka(sifat.data.data || [])
-      setFaktorPenyebab(faktor.data.data || [])
-      setKasusTabrak(kasus.data.data || [])
-      setTindakLanjut(tl.data.data || [])
-      setJenisJaminan(jj.data.data || [])
-      setKeterjaminan(ket.data.data || [])
-      setRumahSakit(rs.data.data || [])
+  // Kelurahan cascading dari kecamatan terpilih (list di-cache, ber-`enabled`).
+  const kelurahan = useKelurahanByKecamatan(kecamatanId ? Number(kecamatanId) : null).data ?? []
 
+  // Ambil data laporan yang akan diedit lalu isi form.
+  useEffect(() => {
+    laporanApi.get(reportId).then((rep) => {
       const data = rep.data.data
       setNoLp(data.no_lp)
       setTanggalLaka(data.tanggal_laka)
       setTanggalLp(data.tanggal_lp)
       setKecamatanId(String(data.kecamatan_id))
-      
-      // Load kelurahan options
-      masterApi.kelurahan(data.kecamatan_id).then((res) => {
-        setKelurahan(res.data.data || [])
-        setKelurahanId(String(data.kelurahan_id))
-      })
+      // Kelurahan list akan otomatis dimuat oleh hook berdasarkan kecamatanId;
+      // cukup set pilihan kelurahan-nya.
+      setKelurahanId(String(data.kelurahan_id))
 
       setLokasi(data.lokasi_laka)
       setKeterangan(data.keterangan || '')
@@ -145,7 +141,7 @@ export function LaporanEditPage() {
       setKasusId(data.kasus_tabrak_kecelakaan_id ? String(data.kasus_tabrak_kecelakaan_id) : '')
       setRumahSakitId(data.rumah_sakit_id ? String(data.rumah_sakit_id) : '')
       setRumahSakitWilayah(data.rumah_sakit_wilayah || '')
-      
+
       setVehicles((data.kendaraan || []).map(v => ({
         id: v.id,
         peran: v.peran,
@@ -153,7 +149,7 @@ export function LaporanEditPage() {
         nopol: v.nopol,
         masa_laku_sw: v.masa_laku_sw ? v.masa_laku_sw.slice(0, 10) : ''
       })))
-      
+
       setVictims((data.korban || []).map(v => ({
         id: v.id,
         nama: v.nama,
@@ -165,25 +161,18 @@ export function LaporanEditPage() {
         jenis_jaminan_id: v.jenis_jaminan_id ? String(v.jenis_jaminan_id) : (v.jenisJaminan?.id ? String(v.jenisJaminan.id) : ''),
         keterjaminan_id: v.keterjaminan_id ? String(v.keterjaminan_id) : (v.keterjaminan?.id ? String(v.keterjaminan.id) : '')
       })))
-      
+
       if (!data.kendaraan?.length) setVehicles([emptyVehicle()])
       if (!data.korban?.length) setVictims([emptyVictim()])
 
     }).catch(() => showError('Gagal memuat data. Cek koneksi server.'))
     .finally(() => setLoading(false))
-  }, [reportId, user?.wilayah_id, showError])
+  }, [reportId, showError])
 
   const handleKecamatanChange = (val: string) => {
+    // Kelurahan list otomatis mengikuti kecamatanId lewat hook; reset pilihan.
     setKecamatanId(val)
-    if (!val) {
-      setKelurahan([])
-      setKelurahanId('')
-      return
-    }
-    masterApi.kelurahan(Number(val)).then((res) => {
-      setKelurahan(res.data.data || [])
-      setKelurahanId('')
-    })
+    setKelurahanId('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -233,6 +222,8 @@ export function LaporanEditPage() {
     try {
       await laporanApi.update(reportId, payload)
       success('Laporan berhasil diperbarui!')
+      // Refresh daftar laporan, dashboard, dan detail laporan ini.
+      queryClient.invalidateQueries({ queryKey: ['laporan'] })
       router.push(`${base}/laporan-polisi/${reportId}`)
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal menyimpan laporan.'

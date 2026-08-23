@@ -5,7 +5,8 @@ import { Loader2, Users, Plus, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader, Button } from '@/components/si-laka-shell'
-import { usersApi, masterApi, type User, type MasterItem } from '@/lib/api'
+import { usersApi, type User } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { useToast } from '@/components/ui/toast-provider'
 import { useIsSuperadmin } from '@/lib/role-base'
 
@@ -13,11 +14,13 @@ export function UsersPage() {
   const { success, error: showError } = useToast()
   const isSuperadmin = useIsSuperadmin()
   const [users, setUsers] = useState<User[]>([])
-  const [wilayah, setWilayah] = useState<MasterItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ username: '', nama_lengkap: '', password: '', role: 'user', wilayah_id: '' })
+
+  // Wilayah = master data, di-cache 30 menit.
+  const wilayah = useMasterList('wilayah').data ?? []
 
   const fetchUsers = () => {
     setLoading(true)
@@ -29,7 +32,6 @@ export function UsersPage() {
 
   useEffect(() => {
     fetchUsers()
-    masterApi.wilayah.list().then((res) => setWilayah(res.data.data || []))
   }, [])
 
   const handleCreate = async (e: React.FormEvent) => {

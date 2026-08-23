@@ -6,7 +6,9 @@ import { FilePlus2, Search, Trash2, Eye, Loader2, AlertCircle, ChevronLeft, Chev
 import { Button, PageHeader, SILakaShell } from '@/components/si-laka-shell'
 import { ArrowDownAZ, ArrowUpAZ, ArrowUpDown } from 'lucide-react'
 import { Pagination } from '@/components/ui/pagination'
-import { laporanApi, masterApi, exportApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { laporanApi, exportApi, type LaporanPolisi } from '@/lib/api'
+import { useMasterList } from '@/lib/hooks/use-master-data'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
@@ -18,20 +20,21 @@ function formatDate(s: string) {
 export function LaporanPolisiListPage() {
   const { user } = useAuthStore()
   const { success, error: showError } = useToast()
+  const queryClient = useQueryClient()
   const isAdmin = user?.role === 'admin'
   const base = useRoleBase()
 
-  const [laporan, setLaporan] = useState<LaporanPolisi[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [polresFilter, setPolresFilter] = useState('')
-  const [polresList, setPolresList] = useState<MasterItem[]>([])
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [exportFrom, setExportFrom] = useState('')
   const [exportTo, setExportTo] = useState('')
   const [exportPolres, setExportPolres] = useState('')
+
+  // Daftar polres = master data, di-cache 30 menit.
+  const polresList = useMasterList('polres', { limit: 100 }).data ?? []
 
   const handleExport = async () => {
     if (exportFrom && exportTo && exportFrom > exportTo) {
@@ -53,70 +56,54 @@ export function LaporanPolisiListPage() {
       setExporting(false)
     }
   }
-  
-  // State untuk pagination
+
+  // State pagination & sorting
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalItems, setTotalItems] = useState(0)
   const limit = 10
 
   const [sortField, setSortField] = useState<'no_lp' | 'tanggal_lp' | 'tanggal_laka'>('tanggal_laka')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
 
-  const fetchLaporan = (pageNum: number = page, searchQuery: string = search, filterPolres: string = polresFilter) => {
-    setLoading(true)
-    
-    // Build params object
-    const params: any = { 
-      page: pageNum, 
-      limit: limit,
-      sort_by: sortField,
-      sort_dir: sortOrder
-    }
-    
-    // Gunakan parameter 'no_lp' yang sudah didukung backend
-    if (searchQuery.trim()) {
-      params.no_lp = searchQuery.trim()
-    }
-    
-    if (filterPolres) {
-      params.polres_id = filterPolres
-    }
-    
-    laporanApi.list(params)
-      .then((res) => {
-        setLaporan(res.data.data || [])
-        setTotalPages(res.data.meta?.total_pages || 1)
-        setTotalItems(res.data.meta?.total || 0)
-        setPage(res.data.meta?.page || 1)
-      })
-      .catch(() => showError('Gagal memuat daftar laporan.'))
-      .finally(() => setLoading(false))
-  }
-
-  // Initial fetch untuk daftar polres
+  // Debounce nilai search agar tidak query tiap ketikan.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   useEffect(() => {
-    masterApi.polres.list({ limit: 100 })
-      .then((res) => setPolresList(res.data.data || []))
-      .catch(console.error)
-  }, [])
-
-  useEffect(() => { 
-    fetchLaporan(1, search, polresFilter) 
-  }, [polresFilter])
-
-  // Handle search dengan debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchLaporan(1, search, polresFilter)
-    }, 500)
-
+    const timer = setTimeout(() => setDebouncedSearch(search), 500)
     return () => clearTimeout(timer)
   }, [search])
 
+  // Reset ke halaman 1 saat filter/pencarian/sorting berubah.
   useEffect(() => {
-    fetchLaporan(page, search, polresFilter)
-  }, [sortField, sortOrder])
+    setPage(1)
+  }, [debouncedSearch, polresFilter, sortField, sortOrder])
+
+  // Daftar laporan (transaksional) — di-cache 60 detik. keepPreviousData menjaga
+  // data lama tetap tampil saat pindah halaman/filter sehingga tidak berkedip.
+  const listParams = {
+    page,
+    limit,
+    sort_by: sortField,
+    sort_dir: sortOrder,
+    ...(debouncedSearch.trim() ? { no_lp: debouncedSearch.trim() } : {}),
+    ...(polresFilter ? { polres_id: polresFilter } : {}),
+  }
+
+  const { data: listData, isLoading: loading, isError } = useQuery({
+    queryKey: ['laporan', 'list', listParams],
+    queryFn: async () => {
+      const res = await laporanApi.list(listParams as any)
+      return res.data
+    },
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  })
+
+  useEffect(() => {
+    if (isError) showError('Gagal memuat daftar laporan.')
+  }, [isError, showError])
+
+  const laporan: LaporanPolisi[] = listData?.data || []
+  const totalPages = listData?.meta?.total_pages || 1
+  const totalItems = listData?.meta?.total || 0
 
   const toggleSort = (field: 'no_lp' | 'tanggal_lp') => {
     if (sortField === field) {
@@ -138,7 +125,8 @@ export function LaporanPolisiListPage() {
     try {
       await laporanApi.delete(id)
       success(`Laporan ${noLp} berhasil dihapus.`)
-      fetchLaporan(page)
+      // Refresh daftar laporan (semua halaman/filter) via invalidate.
+      queryClient.invalidateQueries({ queryKey: ['laporan'] })
     } catch {
       showError('Gagal menghapus laporan. Coba lagi.')
     } finally {
@@ -149,7 +137,6 @@ export function LaporanPolisiListPage() {
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return
     setPage(newPage)
-    fetchLaporan(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
