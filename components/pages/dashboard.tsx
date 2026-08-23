@@ -1779,10 +1779,6 @@ function AdminDashboard({
   hariKejadianData?: HariKejadianItem[] | null
 }) {
   const base = useRoleBase()
-  const today = new Date().toISOString().slice(0, 10)
-  const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
-  const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
-  const totalKorban = laporan.reduce((sum, l) => sum + (l.korban?.length ?? 0), 0)
 
   // Tren per bulan dari endpoint agregasi DB (akurat). Ambil 6 bulan terakhir.
   const monthlyData = (trenBulananData ?? [])
@@ -1793,18 +1789,7 @@ function AdminDashboard({
     }))
 
   // Top 10 Polres dengan laka tertinggi — dari endpoint khusus (akurat, agregasi DB).
-  // Fallback: hitung dari list bila endpoint belum ada datanya.
-  const polresMap: Record<string, { nama: string; count: number }> = {}
-  laporan.forEach((l) => {
-    if (l.polres_id) {
-      const key = String(l.polres_id)
-      if (!polresMap[key]) polresMap[key] = { nama: l.polres?.nama ?? `Polres #${l.polres_id}`, count: 0 }
-      polresMap[key].count++
-    }
-  })
-  const topPolres = (topPolresLakaData && topPolresLakaData.length > 0)
-    ? topPolresLakaData.map((d) => ({ nama: d.nama_polres, count: d.total_laka }))
-    : Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
+  const topPolres = (topPolresLakaData ?? []).map((d) => ({ nama: d.nama_polres, count: d.total_laka }))
 
   return (
     <SILakaShell title="Dashboard Admin" eyebrow="DEMO SI-LAKA">
@@ -1866,7 +1851,7 @@ function AdminDashboard({
           <p className="mb-0.5 text-sm font-semibold text-foreground">Jenis Kecelakaan</p>
           <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs Laka Non-Tunggal</p>
           <JenisLakaPieChart
-            tunggal={jenisLakaData?.laka_tunggal.total ?? lakaTunggal}
+            tunggal={jenisLakaData?.laka_tunggal.total ?? 0}
             total={jenisLakaData?.total_laka ?? total}
           />
         </div>
@@ -1938,10 +1923,6 @@ function UserDashboard({
   hariKejadianData?: HariKejadianItem[] | null
 }) {
   const base = useRoleBase()
-  const today = new Date().toISOString().slice(0, 10)
-  const bulanIni = laporan.filter((l) => l.tanggal_laka?.slice(0, 7) === today.slice(0, 7)).length
-  const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
-  const totalKorban = laporan.reduce((sum, l) => sum + (l.korban?.length ?? 0), 0)
 
   // Tren per bulan dari endpoint agregasi DB (akurat). Ambil 6 bulan terakhir.
   const monthlyData = (trenBulananData ?? [])
@@ -2010,7 +1991,7 @@ function UserDashboard({
           <p className="mb-0.5 text-sm font-semibold text-foreground">Jenis Kecelakaan</p>
           <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs multi pihak</p>
           <JenisLakaPieChart
-            tunggal={jenisLakaData?.laka_tunggal.total ?? lakaTunggal}
+            tunggal={jenisLakaData?.laka_tunggal.total ?? 0}
             total={jenisLakaData?.total_laka ?? total}
           />
         </div>
@@ -2120,7 +2101,10 @@ export function DashboardPage() {
       try {
         setLoading(true)
 
-        const listRes = await laporanApi.list({ page: 1, limit: 1000, from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined })
+        // Dashboard hanya butuh sedikit laporan untuk "Laporan Terbaru" (5 baris).
+        // Semua angka statistik diambil dari endpoint agregasi DB, bukan dari list ini.
+        // Ambil 10 terbaru (by created_at) sebagai buffer + fallback ringan.
+        const listRes = await laporanApi.list({ page: 1, limit: 10, sort_by: 'created_at', sort_dir: 'DESC', from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined })
         setLaporan(listRes.data.data || [])
         setTotalLaporan(listRes.data.meta?.total ?? 0)
 
