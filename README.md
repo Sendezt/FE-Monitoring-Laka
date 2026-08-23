@@ -82,5 +82,3 @@ Sistem ini terintegrasi dengan Vercel untuk deployment otomatis.
    ```bash
    pnpm run deploy
    ```
-
-feat: integrate TanStack Query for master data management
