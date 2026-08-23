@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save } from 'lucide-react'
+import { Plus, Trash2, MapPin, ShieldAlert, CarFront, HeartPulse, Loader2, Save, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react'
 import { Field, inputClass, selectClass, SILakaShell } from '@/components/si-laka-shell'
 import { laporanApi, masterApi, type MasterItem, type CreateLaporanPayload } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
-import { useRoleBase } from '@/lib/role-base'
+import { useRoleBase, useIsSuperadmin } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
 import { getWeekday } from '@/lib/formatters'
 import { SearchableSelect } from '@/components/ui/searchable-select'
@@ -58,6 +58,7 @@ export function LaporanTambahPage() {
   const { user } = useAuthStore()
   const { success, error: showError } = useToast()
   const base = useRoleBase()
+  const isSuperadmin = useIsSuperadmin()
 
   // Master data
   const [polres, setPolres] = useState<MasterItem[]>([])
@@ -93,6 +94,52 @@ export function LaporanTambahPage() {
   const [vehicles, setVehicles] = useState<VehicleForm[]>([emptyVehicle()])
   const [victims, setVictims] = useState<VictimForm[]>([emptyVictim()])
   const [isSaving, setIsSaving] = useState(false)
+
+  // ── Urutan section (dapat diatur pengguna, disimpan di localStorage) ──────────
+  const DEFAULT_SECTION_ORDER = ['identitas', 'lokasi', 'kendaraan', 'korban', 'klasifikasi']
+  const SECTION_ORDER_KEY = 'laporan_form_section_order'
+  const [sectionOrder, setSectionOrder] = useState<string[]>(DEFAULT_SECTION_ORDER)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(SECTION_ORDER_KEY)
+      if (saved) {
+        const arr = JSON.parse(saved) as string[]
+        // Validasi: harus memuat semua section yang dikenal, tanpa yang asing
+        const valid =
+          Array.isArray(arr) &&
+          arr.length === DEFAULT_SECTION_ORDER.length &&
+          DEFAULT_SECTION_ORDER.every((s) => arr.includes(s))
+        if (valid) setSectionOrder(arr)
+      }
+    } catch { /* abaikan, pakai default */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const persistOrder = (arr: string[]) => {
+    setSectionOrder(arr)
+    try { localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(arr)) } catch { /* noop */ }
+  }
+
+  const moveSection = (index: number, dir: -1 | 1) => {
+    const target = index + dir
+    if (target < 0 || target >= sectionOrder.length) return
+    const next = [...sectionOrder]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    persistOrder(next)
+  }
+
+  const handleDrop = (targetIndex: number) => {
+    if (dragIndex === null || dragIndex === targetIndex) { setDragIndex(null); return }
+    const next = [...sectionOrder]
+    const [moved] = next.splice(dragIndex, 1)
+    next.splice(targetIndex, 0, moved)
+    persistOrder(next)
+    setDragIndex(null)
+  }
+
+  const resetOrder = () => persistOrder(DEFAULT_SECTION_ORDER)
 
   const weekday = useMemo(() => getWeekday(tanggalLaka), [tanggalLaka])
   const telat = useMemo(() => {
@@ -205,10 +252,33 @@ export function LaporanTambahPage() {
     }
   }
 
-  const SectionHeader = ({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) => (
+  const SectionHeader = ({ icon: Icon, title, desc, index }: { icon: React.ElementType; title: string; desc: string; index: number }) => (
     <div className="mb-5 flex items-center gap-3 border-b pb-4">
       <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Icon size={18} /></div>
-      <div><h3 className="font-semibold text-foreground">{title}</h3><p className="text-xs text-muted-foreground">{desc}</p></div>
+      <div className="flex-1"><h3 className="font-semibold text-foreground">{title}</h3><p className="text-xs text-muted-foreground">{desc}</p></div>
+      {/* Kontrol urutan: panah naik/turun (drag handle ada di wrapper section) */}
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => moveSection(index, -1)}
+          disabled={index === 0}
+          aria-label="Naikkan urutan"
+          title="Naikkan"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        >
+          <ChevronUp size={15} />
+        </button>
+        <button
+          type="button"
+          onClick={() => moveSection(index, 1)}
+          disabled={index === sectionOrder.length - 1}
+          aria-label="Turunkan urutan"
+          title="Turunkan"
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        >
+          <ChevronDown size={15} />
+        </button>
+      </div>
     </div>
   )
 
@@ -227,237 +297,214 @@ export function LaporanTambahPage() {
     <SILakaShell title="Buat Laporan Baru" eyebrow="Laporan Polisi">
       <form onSubmit={handleSubmit} className="space-y-6">
 
-        {/* Section 1: Identitas Laporan */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={MapPin} title="Identitas & Waktu Kejadian" desc="Nomor laporan dan waktu kejadian perkara" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Nomor LP" required>
-              <input required value={noLp} onChange={(e) => setNoLp(e.target.value)} placeholder="Nomor LP" className={inputClass} />
-            </Field>
-            <Field label="Hari">
-              <input readOnly value={weekday} className={`${inputClass} bg-muted cursor-not-allowed text-muted-foreground`} />
-            </Field>
-            <Field label="Tanggal Kejadian" required>
-              <input required type="date" value={tanggalLaka} onChange={(e) => setTanggalLaka(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Tanggal LP" required>
-              <input required type="date" value={tanggalLp} onChange={(e) => setTanggalLp(e.target.value)} className={inputClass} />
-            </Field>
-            <Field label="Telat LP (hari)">
-              <input readOnly value={telat} className={`${inputClass} bg-muted cursor-not-allowed text-muted-foreground`} />
-            </Field>
+        {/* Info urutan + reset */}
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-2.5">
+          <div className="text-xs text-muted-foreground">
+            <p>Anda dapat mengatur urutan bagian form: pakai panah ↑↓ atau seret kartu ke posisi yang diinginkan. Urutan tersimpan di perangkat ini.</p>
+            {isSuperadmin && (
+              <p className="mt-1 flex items-start gap-1.5 text-amber-600 dark:text-amber-400">
+                {/* <ShieldAlert size={13} className="mt-0.5 shrink-0" /> */}
+                Anda login sebagai Superadmin. Disarankan tidak menginput laporan kecelakaan — gunakan akun admin wilayah atau hubungi administrator terkait.
+              </p>
+            )}
           </div>
-        </section>
+          <button
+            type="button"
+            onClick={resetOrder}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-card px-2.5 py-1.5 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
+          >
+            <RotateCcw size={12} /> Reset Urutan
+          </button>
+        </div>
 
-        {/* Section 2: Lokasi */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={MapPin} title="Lokasi Kejadian" desc="Wilayah dan tempat kejadian perkara" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Polres" required>
-              <SearchableSelect
-                options={polres}
-                value={polresId}
-                onChange={(id) => setPolresId(id ? String(id) : '')}
-                placeholder="Pilih polres"
-                clearable={false}
-              />
-            </Field>
-            <Field label="Kecamatan" required>
-              <SearchableSelect
-                options={kecamatan}
-                value={kecamatanId}
-                onChange={(id) => setKecamatanId(id ? String(id) : '')}
-                placeholder={polresId ? 'Pilih kecamatan' : 'Pilih polres dahulu'}
-                disabled={!polresId}
-                clearable={false}
-              />
-            </Field>
-            <Field label="Kelurahan" required>
-              <SearchableSelect
-                options={kelurahan}
-                value={kelurahanId}
-                onChange={(id) => setKelurahanId(id ? String(id) : '')}
-                placeholder={kecamatanId ? 'Pilih kelurahan' : 'Pilih kecamatan dahulu'}
-                disabled={!kecamatanId}
-                clearable={false}
-              />
-            </Field>
-            <Field label="Jalan / Tempat Kejadian" required>
-              <input required value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Jl. Slamet Riyadi No. 10" className={inputClass} />
-            </Field>
-            <Field label="Rumah Sakit">
-              <SearchableSelect
-                options={rumahSakit}
-                value={rumahSakitId}
-                onChange={(id) => setRumahSakitId(id ? String(id) : '')}
-                placeholder="Pilih rumah sakit"
-              />
-            </Field>
-            <Field label="RS Luar Wilayah (Opsional)">
-              <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Rumah sakit wilayah lain" className={inputClass} />
-            </Field>
-          </div>
-        </section>
+        {sectionOrder.map((key, index) => {
+          const wrapperProps = {
+            draggable: true,
+            onDragStart: () => setDragIndex(index),
+            onDragOver: (e: React.DragEvent) => e.preventDefault(),
+            onDrop: () => handleDrop(index),
+            onDragEnd: () => setDragIndex(null),
+            className: `rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6 ${dragIndex === index ? 'opacity-60 ring-2 ring-primary/40' : ''}`,
+          }
 
-        {/* Section 3: Kendaraan */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={CarFront} title="Data Kendaraan" desc="Tambahkan semua kendaraan yang terlibat" />
-          <div className="space-y-4">
-            {vehicles.map((v, i) => (
-              <div key={i} className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">{getVehicleLabel(vehicles, i)}</span>
-                  {vehicles.length > 1 && (
-                    <button type="button" onClick={() => setVehicles(vehicles.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-                  <Field label="Peran">
-                    <select value={v.peran} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, peran: e.target.value as 'korban' | 'penjamin' } : x))} className={selectClass}>
-                      <option value="korban">Korban</option>
-                      <option value="penjamin">Penjamin</option>
-                    </select>
+          if (key === 'identitas') {
+            return (
+              <section key={key} {...wrapperProps}>
+                <SectionHeader icon={MapPin} title="Identitas & Waktu Kejadian" desc="Nomor laporan dan waktu kejadian perkara" index={index} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Nomor LP" required>
+                    <input required value={noLp} onChange={(e) => setNoLp(e.target.value)} placeholder="Nomor LP" className={inputClass} />
                   </Field>
-                  <Field label="Jenis Kendaraan" required>
-                    <SearchableSelect
-                      options={jenisKendaraan}
-                      value={v.jenis_kendaraan_id}
-                      onChange={(id) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih jenis"
-                      clearable={false}
-                    />
+                  <Field label="Hari">
+                    <input readOnly value={weekday} className={`${inputClass} bg-muted cursor-not-allowed text-muted-foreground`} />
                   </Field>
-                  <Field label="Nopol" required>
-                    <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="Nopol Kendaraan" className={inputClass} />
+                  <Field label="Tanggal Kejadian" required>
+                    <input required type="date" value={tanggalLaka} onChange={(e) => setTanggalLaka(e.target.value)} className={inputClass} />
                   </Field>
-                  <Field label="Masa Laku SW">
-                    <input type="date" value={v.masa_laku_sw || ''} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, masa_laku_sw: e.target.value } : x))} className={inputClass} />
+                  <Field label="Tanggal LP" required>
+                    <input required type="date" value={tanggalLp} onChange={(e) => setTanggalLp(e.target.value)} className={inputClass} />
+                  </Field>
+                  <Field label="Telat LP (hari)">
+                    <input readOnly value={telat} className={`${inputClass} bg-muted cursor-not-allowed text-muted-foreground`} />
                   </Field>
                 </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setVehicles([...vehicles, emptyVehicle()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
-              <Plus size={13} /> Tambah Kendaraan
-            </button>
-          </div>
-        </section>
+              </section>
+            )
+          }
 
-        {/* Section 4: Korban */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={HeartPulse} title="Data Korban" desc="Tambahkan semua korban yang terlibat" />
-          <div className="space-y-4">
-            {victims.map((v, i) => (
-              <div key={i} className="rounded-lg border bg-muted/20 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">Korban #{i + 1}</span>
-                  {victims.length > 1 && (
-                    <button type="button" onClick={() => setVictims(victims.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-                  <Field label="Nama" required>
-                    <input required value={v.nama} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, nama: e.target.value } : x))} placeholder="Nama korban" className={inputClass} />
+          if (key === 'lokasi') {
+            return (
+              <section key={key} {...wrapperProps}>
+                <SectionHeader icon={MapPin} title="Lokasi Kejadian" desc="Wilayah dan tempat kejadian perkara" index={index} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Polres" required>
+                    <SearchableSelect options={polres} value={polresId} onChange={(id) => setPolresId(id ? String(id) : '')} placeholder="Pilih polres" clearable={false} />
                   </Field>
-                  <Field label="Usia" required>
-                    <input required type="number" min="0" max="120" value={v.usia} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, usia: e.target.value } : x))} placeholder="35" className={inputClass} />
+                  <Field label="Kecamatan" required>
+                    <SearchableSelect options={kecamatan} value={kecamatanId} onChange={(id) => setKecamatanId(id ? String(id) : '')} placeholder={polresId ? 'Pilih kecamatan' : 'Pilih polres dahulu'} disabled={!polresId} clearable={false} />
                   </Field>
-                  <Field label="Profesi">
-                    <SearchableSelect
-                      options={profesi}
-                      value={v.profesi_id}
-                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih profesi"
-                    />
+                  <Field label="Kelurahan" required>
+                    <SearchableSelect options={kelurahan} value={kelurahanId} onChange={(id) => setKelurahanId(id ? String(id) : '')} placeholder={kecamatanId ? 'Pilih kelurahan' : 'Pilih kecamatan dahulu'} disabled={!kecamatanId} clearable={false} />
                   </Field>
-                  <Field label="Jenis Cidera">
-                    <SearchableSelect
-                      options={cidera}
-                      value={v.cidera_id}
-                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih cidera"
-                    />
+                  <Field label="Jalan / Tempat Kejadian" required>
+                    <input required value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Jl. Slamet Riyadi No. 10" className={inputClass} />
                   </Field>
-                  <Field label="Kendaraan (index)">
-                    <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
-                      {vehicles.map((veh, idx) => <option key={idx} value={idx}>{getVehicleLabel(vehicles, idx)} · {veh.nopol || '(belum diisi)'}</option>)}
-                    </select>
+                  <Field label="Rumah Sakit">
+                    <SearchableSelect options={rumahSakit} value={rumahSakitId} onChange={(id) => setRumahSakitId(id ? String(id) : '')} placeholder="Pilih rumah sakit" />
                   </Field>
-                  <Field label="Tindak Lanjut">
-                    <SearchableSelect
-                      options={tindakLanjut}
-                      value={v.tindak_lanjut_id}
-                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, tindak_lanjut_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih tindak lanjut"
-                    />
-                  </Field>
-                  <Field label="Jenis Jaminan">
-                    <SearchableSelect
-                      options={jenisJaminan}
-                      value={v.jenis_jaminan_id}
-                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, jenis_jaminan_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih jenis jaminan"
-                    />
-                  </Field>
-                  <Field label="Keterjaminan">
-                    <SearchableSelect
-                      options={keterjaminan}
-                      value={v.keterjaminan_id}
-                      onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, keterjaminan_id: id ? String(id) : '' } : x))}
-                      placeholder="Pilih keterjaminan"
-                    />
+                  <Field label="RS Luar Wilayah (Opsional)">
+                    <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Rumah sakit wilayah lain" className={inputClass} />
                   </Field>
                 </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setVictims([...victims, emptyVictim()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
-              <Plus size={13} /> Tambah Korban
-            </button>
-          </div>
-        </section>
+              </section>
+            )
+          }
 
-        {/* Section 5: Klasifikasi */}
-        <section className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300 md:p-6">
-          <SectionHeader icon={ShieldAlert} title="Klasifikasi Kejadian" desc="Jenis, faktor, dan tindak lanjut kejadian" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Sifat Laka">
-              <SearchableSelect
-                options={sifatLaka}
-                value={sifatLakaId}
-                onChange={(id) => setSifatLakaId(id ? String(id) : '')}
-                placeholder="Pilih sifat laka"
-              />
-            </Field>
-            <Field label="Faktor Penyebab">
-              <SearchableSelect
-                options={faktorPenyebab}
-                value={faktorId}
-                onChange={(id) => setFaktorId(id ? String(id) : '')}
-                placeholder="Pilih faktor penyebab"
-              />
-            </Field>
-            <Field label="Kasus Tabrak">
-              <SearchableSelect
-                options={kasusTabrak}
-                value={kasusId}
-                onChange={(id) => setKasusId(id ? String(id) : '')}
-                placeholder="Pilih kasus tabrak"
-              />
-            </Field>
-            <Field label="Laka Tunggal">
-              <div className="flex items-center gap-2 pt-1">
-                <input type="checkbox" id="laka-tunggal" checked={lakaTunggal} onChange={(e) => setLakaTunggal(e.target.checked)} className="size-4 rounded accent-primary" />
-                <label htmlFor="laka-tunggal" className="text-sm cursor-pointer">Ya, kecelakaan tunggal</label>
-              </div>
-            </Field>
-            <Field label="Keterangan">
-              <input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan (opsional)" className={inputClass} />
-            </Field>
-          </div>
-        </section>
+          if (key === 'kendaraan') {
+            return (
+              <section key={key} {...wrapperProps}>
+                <SectionHeader icon={CarFront} title="Data Kendaraan" desc="Tambahkan semua kendaraan yang terlibat" index={index} />
+                <div className="space-y-4">
+                  {vehicles.map((v, i) => (
+                    <div key={i} className="rounded-lg border bg-muted/20 p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-muted-foreground">{getVehicleLabel(vehicles, i)}</span>
+                        {vehicles.length > 1 && (
+                          <button type="button" onClick={() => setVehicles(vehicles.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                        <Field label="Peran">
+                          <select value={v.peran} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, peran: e.target.value as 'korban' | 'penjamin' } : x))} className={selectClass}>
+                            <option value="korban">Korban</option>
+                            <option value="penjamin">Penjamin</option>
+                          </select>
+                        </Field>
+                        <Field label="Jenis Kendaraan" required>
+                          <SearchableSelect options={jenisKendaraan} value={v.jenis_kendaraan_id} onChange={(id) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, jenis_kendaraan_id: id ? String(id) : '' } : x))} placeholder="Pilih jenis" clearable={false} />
+                        </Field>
+                        <Field label="Nopol" required>
+                          <input required value={v.nopol} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, nopol: e.target.value.toUpperCase() } : x))} placeholder="Nopol Kendaraan" className={inputClass} />
+                        </Field>
+                        <Field label="Masa Laku SW">
+                          <input type="date" value={v.masa_laku_sw || ''} onChange={(e) => setVehicles(vehicles.map((x, j) => j === i ? { ...x, masa_laku_sw: e.target.value } : x))} className={inputClass} />
+                        </Field>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setVehicles([...vehicles, emptyVehicle()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
+                    <Plus size={13} /> Tambah Kendaraan
+                  </button>
+                </div>
+              </section>
+            )
+          }
+
+          if (key === 'korban') {
+            return (
+              <section key={key} {...wrapperProps}>
+                <SectionHeader icon={HeartPulse} title="Data Korban" desc="Tambahkan semua korban yang terlibat" index={index} />
+                <div className="space-y-4">
+                  {victims.map((v, i) => (
+                    <div key={i} className="rounded-lg border bg-muted/20 p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-muted-foreground">Korban #{i + 1}</span>
+                        {victims.length > 1 && (
+                          <button type="button" onClick={() => setVictims(victims.filter((_, j) => j !== i))} className="text-destructive hover:text-destructive/70 cursor-pointer">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                        <Field label="Nama" required>
+                          <input required value={v.nama} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, nama: e.target.value } : x))} placeholder="Nama korban" className={inputClass} />
+                        </Field>
+                        <Field label="Usia" required>
+                          <input required type="number" min="0" max="120" value={v.usia} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, usia: e.target.value } : x))} placeholder="35" className={inputClass} />
+                        </Field>
+                        <Field label="Profesi">
+                          <SearchableSelect options={profesi} value={v.profesi_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, profesi_id: id ? String(id) : '' } : x))} placeholder="Pilih profesi" />
+                        </Field>
+                        <Field label="Jenis Cidera">
+                          <SearchableSelect options={cidera} value={v.cidera_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, cidera_id: id ? String(id) : '' } : x))} placeholder="Pilih cidera" />
+                        </Field>
+                        <Field label="Kendaraan (index)">
+                          <select value={v.kendaraan_index} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, kendaraan_index: e.target.value } : x))} className={selectClass}>
+                            {vehicles.map((veh, idx) => <option key={idx} value={idx}>{getVehicleLabel(vehicles, idx)} · {veh.nopol || '(belum diisi)'}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Tindak Lanjut">
+                          <SearchableSelect options={tindakLanjut} value={v.tindak_lanjut_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, tindak_lanjut_id: id ? String(id) : '' } : x))} placeholder="Pilih tindak lanjut" />
+                        </Field>
+                        <Field label="Jenis Jaminan">
+                          <SearchableSelect options={jenisJaminan} value={v.jenis_jaminan_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, jenis_jaminan_id: id ? String(id) : '' } : x))} placeholder="Pilih jenis jaminan" />
+                        </Field>
+                        <Field label="Keterjaminan">
+                          <SearchableSelect options={keterjaminan} value={v.keterjaminan_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, keterjaminan_id: id ? String(id) : '' } : x))} placeholder="Pilih keterjaminan" />
+                        </Field>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setVictims([...victims, emptyVictim()])} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer">
+                    <Plus size={13} /> Tambah Korban
+                  </button>
+                </div>
+              </section>
+            )
+          }
+
+          if (key === 'klasifikasi') {
+            return (
+              <section key={key} {...wrapperProps}>
+                <SectionHeader icon={ShieldAlert} title="Klasifikasi Kejadian" desc="Jenis, faktor, dan tindak lanjut kejadian" index={index} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Sifat Laka">
+                    <SearchableSelect options={sifatLaka} value={sifatLakaId} onChange={(id) => setSifatLakaId(id ? String(id) : '')} placeholder="Pilih sifat laka" />
+                  </Field>
+                  <Field label="Faktor Penyebab">
+                    <SearchableSelect options={faktorPenyebab} value={faktorId} onChange={(id) => setFaktorId(id ? String(id) : '')} placeholder="Pilih faktor penyebab" />
+                  </Field>
+                  <Field label="Kasus Tabrak">
+                    <SearchableSelect options={kasusTabrak} value={kasusId} onChange={(id) => setKasusId(id ? String(id) : '')} placeholder="Pilih kasus tabrak" />
+                  </Field>
+                  <Field label="Laka Tunggal">
+                    <div className="flex items-center gap-2 pt-1">
+                      <input type="checkbox" id="laka-tunggal" checked={lakaTunggal} onChange={(e) => setLakaTunggal(e.target.checked)} className="size-4 rounded accent-primary" />
+                      <label htmlFor="laka-tunggal" className="text-sm cursor-pointer">Ya, kecelakaan tunggal</label>
+                    </div>
+                  </Field>
+                  <Field label="Keterangan">
+                    <input value={keterangan} onChange={(e) => setKeterangan(e.target.value)} placeholder="Catatan tambahan (opsional)" className={inputClass} />
+                  </Field>
+                </div>
+              </section>
+            )
+          }
+
+          return null
+        })}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-3 border-t pt-5">

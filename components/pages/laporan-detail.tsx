@@ -42,6 +42,7 @@ export function LaporanDetailPage() {
   const [mapKasusTabrak, setMapKasusTabrak] = useState<Map<number, string>>(new Map())
   const [mapFaktorPenyebab, setMapFaktorPenyebab] = useState<Map<number, string>>(new Map())
   const [mapSifatLaka, setMapSifatLaka] = useState<Map<number, string>>(new Map())
+  const [mapRumahSakit, setMapRumahSakit] = useState<Map<number, string>>(new Map())
 
   useEffect(() => {
     const toMap = (items: MasterItem[]) => new Map(items.map((i) => [i.id, i.nama]))
@@ -50,12 +51,14 @@ export function LaporanDetailPage() {
       masterApi.kasusTabrak.list(),
       masterApi.faktorPenyebab.list(),
       masterApi.sifatLaka.list(),
+      masterApi.rumahsakit.list(),
     ])
-      .then(([laporanRes, kasusRes, faktorRes, sifatRes]) => {
+      .then(([laporanRes, kasusRes, faktorRes, sifatRes, rumahSakitRes]) => {
         setLaporan(laporanRes.data.data)
         setMapKasusTabrak(toMap(kasusRes.data.data))
         setMapFaktorPenyebab(toMap(faktorRes.data.data))
         setMapSifatLaka(toMap(sifatRes.data.data))
+        setMapRumahSakit(toMap(rumahSakitRes.data.data))
       })
       .catch(() => setError('Laporan tidak ditemukan.'))
       .finally(() => setLoading(false))
@@ -134,8 +137,8 @@ export function LaporanDetailPage() {
         {/* ── Rumah Sakit ── */}
         <Section icon={Hospital} title="Rumah Sakit">
           <div className="grid gap-4 sm:grid-cols-2 text-sm">
-            <Field label="RS Wilayah Sendiri" value={laporan.rumah_sakit_wilayah && /sendiri/i.test(laporan.rumah_sakit_wilayah) ? laporan.rumah_sakit_wilayah : '-'} />
-            <Field label="RS Wilayah Lain" value={laporan.rumah_sakit_wilayah && /lain/i.test(laporan.rumah_sakit_wilayah) ? laporan.rumah_sakit_wilayah : (!laporan.rumah_sakit_wilayah || (/sendiri/i.test(laporan.rumah_sakit_wilayah) || /lain/i.test(laporan.rumah_sakit_wilayah)) ? '-' : laporan.rumah_sakit_wilayah)} />
+            <Field label="RS Wilayah Sendiri" value={laporan.rumah_sakit_id ? (mapRumahSakit.get(laporan.rumah_sakit_id) || '-') : '-'} />
+            <Field label="RS Wilayah Lain" value={laporan.rumah_sakit_wilayah || '-'} />
           </div>
         </Section>
 

@@ -60,8 +60,8 @@ export interface AuthUser {
   username: string
   nama_lengkap: string
   role: 'admin' | 'user'
-  wilayah_id: number
-  wilayah: { id: number; nama: string }
+  wilayah_id: number | null
+  wilayah: { id: number; nama: string } | null
 }
 
 export const authApi = {
@@ -302,6 +302,22 @@ export interface TopKecamatanLakaItem {
   total_laka: number
 }
 
+export interface TopPolresLakaItem {
+  polres_id: number
+  nama_polres: string
+  total_laka: number
+}
+
+export interface TrenBulananItem {
+  bulan: string // "YYYY-MM"
+  total_lp: number
+}
+
+export interface HariKejadianItem {
+  hari: string
+  total_laka: number
+}
+
 export interface TopRumahSakitKorbanItem {
   rumah_sakit_id: number
   nama_rumah_sakit: string
@@ -374,6 +390,12 @@ export const chartApi = {
     api.get<ApiResponse<JenisKendaraanKorbanData>>('/api/chart/statistik/korban-per-jenis-kendaraan', { params }),
   topKecamatanLaka: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
     api.get<ApiResponse<TopKecamatanLakaItem[]>>('/api/chart/statistik/top-20-kecamatan-laka', { params }),
+  topPolresLaka: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TopPolresLakaItem[]>>('/api/chart/statistik/top-10-polres-laka', { params }),
+  trenBulanan: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<TrenBulananItem[]>>('/api/chart/statistik/tren-bulanan', { params }),
+  hariKejadian: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
+    api.get<ApiResponse<HariKejadianItem[]>>('/api/chart/statistik/hari-kejadian', { params }),
   topRumahSakitKorban: (params?: { from?: string; to?: string; polres_id?: string | number }) =>
     api.get<ApiResponse<TopRumahSakitKorbanItem[]>>('/api/chart/statistik/top-15-rumah-sakit-korban', { params }),
   trendHarian: (params: { tanggal_awal: string; tanggal_akhir: string; polres_id: string }) =>
@@ -600,4 +622,40 @@ export const masterApi = {
   kasusTabrak: masterCrud('/api/kasus-tabrak-kecelakaan'),
   faktorPenyebab: masterCrud('/api/faktor-penyebab-laka'),
   jenisJaminan: masterCrud('/api/jenis-jaminan'),
+}
+
+// ─── Export XLSX ────────────────────────────────────────────────────────────────
+// Mengunduh file Excel dari backend (respons blob) lalu memicu download di browser.
+
+async function downloadXlsx(path: string, params: Record<string, unknown>, fallbackName: string) {
+  const res = await api.get(path, { params, responseType: 'blob' })
+  // Ambil nama file dari header Content-Disposition bila ada
+  const disp = (res.headers?.['content-disposition'] || res.headers?.['Content-Disposition']) as string | undefined
+  let filename = fallbackName
+  if (disp) {
+    const m = disp.match(/filename="?([^"]+)"?/)
+    if (m) filename = m[1]
+  }
+  const blob = new Blob([res.data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+type ExportParams = { from?: string; to?: string; polres_id?: string | number }
+
+export const exportApi = {
+  laporanPolisi: (params: ExportParams = {}) =>
+    downloadXlsx('/api/export/laporan-polisi', params, `Laporan_Polisi_${Date.now()}.xlsx`),
+  monitoring: (params: ExportParams = {}) =>
+    downloadXlsx('/api/export/monitoring', params, `Monitoring_Data_${Date.now()}.xlsx`),
+  rekapitulasi: (params: ExportParams = {}) =>
+    downloadXlsx('/api/export/rekapitulasi', params, `Rekapitulasi_${Date.now()}.xlsx`),
 }

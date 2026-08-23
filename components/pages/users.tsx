@@ -7,9 +7,11 @@ import { AuthGuard } from '@/components/auth/auth-guard'
 import { SILakaShell, PageHeader, Button } from '@/components/si-laka-shell'
 import { usersApi, masterApi, type User, type MasterItem } from '@/lib/api'
 import { useToast } from '@/components/ui/toast-provider'
+import { useIsSuperadmin } from '@/lib/role-base'
 
 export function UsersPage() {
   const { success, error: showError } = useToast()
+  const isSuperadmin = useIsSuperadmin()
   const [users, setUsers] = useState<User[]>([])
   const [wilayah, setWilayah] = useState<MasterItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +34,11 @@ export function UsersPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Admin wilayah (bukan superadmin) tidak boleh membuat akun admin.
+    if (!isSuperadmin && form.role === 'admin') {
+      showError('Hanya superadmin yang dapat membuat akun admin.')
+      return
+    }
     setSaving(true)
     try {
       await usersApi.create({ ...form, wilayah_id: form.wilayah_id ? Number(form.wilayah_id) : null })
@@ -70,7 +77,7 @@ export function UsersPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/80">Nama Lengkap</label>
-                <input required className={inputCls} placeholder="Budi Santoso" value={form.nama_lengkap} onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })} />
+                <input required className={inputCls} placeholder="Nama Lengkap" value={form.nama_lengkap} onChange={(e) => setForm({ ...form, nama_lengkap: e.target.value })} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-foreground/80">Password</label>
@@ -80,7 +87,8 @@ export function UsersPage() {
                 <label className="text-xs font-semibold text-foreground/80">Role</label>
                 <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value, wilayah_id: e.target.value === 'admin' ? '' : form.wilayah_id })}>
                   <option value="user">User</option>
-                  <option value="admin">Admin</option>
+                  {/* Hanya superadmin (wilayah_id null) yang boleh membuat akun admin */}
+                  {isSuperadmin && <option value="admin">Admin</option>}
                 </select>
               </div>
               {form.role === 'user' && (

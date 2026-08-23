@@ -4,10 +4,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   TableProperties, LayoutGrid, Loader2, AlertCircle,
   Printer, FileText, Check,
-  ChevronDown, Search, X
+  ChevronDown, Search, X, Download
 } from 'lucide-react'
-import { laporanApi, masterApi, type LaporanPolisi, type MasterItem, type Korban } from '@/lib/api'
+import { laporanApi, masterApi, exportApi, type LaporanPolisi, type MasterItem, type Korban } from '@/lib/api'
 import { SILakaShell, PageHeader } from '@/components/si-laka-shell'
+import { useToast } from '@/components/ui/toast-provider'
 
 function fmtDate(s?: string | null) {
   if (!s) return '-'
@@ -318,6 +319,29 @@ export function MonitorPolresPage() {
   const [polresFilter, setPolresFilter] = useState<string>('all')
   const [monthFilter, setMonthFilter] = useState<string>(new Date().toISOString().slice(0, 7))
   const [search, setSearch] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const [y, m] = monthFilter.split('-')
+      const from = monthFilter ? `${monthFilter}-01` : undefined
+      const to = monthFilter
+        ? new Date(parseInt(y), parseInt(m), 0).toISOString().split('T')[0]
+        : undefined
+      await exportApi.monitoring({
+        from,
+        to,
+        polres_id: polresFilter !== 'all' ? polresFilter : undefined,
+      })
+      toastSuccess('File monitoring data berhasil diunduh.')
+    } catch {
+      toastError('Gagal mengekspor monitoring data.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -423,21 +447,32 @@ export function MonitorPolresPage() {
           )}
         </div>
 
-        <div className="flex rounded-lg border border-border/80 bg-muted/40 p-0.5 ml-auto">
+        <div className="flex items-center gap-2 ml-auto">
           <button
-            onClick={() => setViewMode('card')}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'card' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={handleExport}
+            disabled={exporting || loading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40 dark:hover:bg-emerald-950/50 transition-colors disabled:opacity-50"
           >
-            <LayoutGrid size={14} />
-            Checklist
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            Export
           </button>
-          <button
-            onClick={() => setViewMode('spreadsheet')}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'spreadsheet' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <TableProperties size={14} />
-            Spreadsheet
-          </button>
+
+          <div className="flex rounded-lg border border-border/80 bg-muted/40 p-0.5">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'card' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <LayoutGrid size={14} />
+              Checklist
+            </button>
+            <button
+              onClick={() => setViewMode('spreadsheet')}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${viewMode === 'spreadsheet' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <TableProperties size={14} />
+              Spreadsheet
+            </button>
+          </div>
         </div>
       </div>
 

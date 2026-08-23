@@ -136,8 +136,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
       {/* Toast viewport: bottom on mobile, top-right on desktop */}
       <div
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex flex-col items-center gap-2 p-4
-          sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:items-end sm:p-0"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-[100] flex flex-col items-center gap-2 p-4 sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:items-end sm:p-0"
         role="region"
         aria-label="Notifikasi"
       >

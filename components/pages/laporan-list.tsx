@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FilePlus2, Search, Trash2, Eye, Loader2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FilePlus2, Search, Trash2, Eye, Loader2, AlertCircle, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { Button, PageHeader, SILakaShell } from '@/components/si-laka-shell'
 import { ArrowDownAZ, ArrowUpAZ, ArrowUpDown } from 'lucide-react'
 import { Pagination } from '@/components/ui/pagination'
-import { laporanApi, masterApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
+import { laporanApi, masterApi, exportApi, type LaporanPolisi, type MasterItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
 import { useToast } from '@/components/ui/toast-provider'
@@ -27,6 +27,32 @@ export function LaporanPolisiListPage() {
   const [polresFilter, setPolresFilter] = useState('')
   const [polresList, setPolresList] = useState<MasterItem[]>([])
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
+  const [exportPolres, setExportPolres] = useState('')
+
+  const handleExport = async () => {
+    if (exportFrom && exportTo && exportFrom > exportTo) {
+      showError('Tanggal awal tidak boleh lebih besar dari tanggal akhir.')
+      return
+    }
+    setExporting(true)
+    try {
+      await exportApi.laporanPolisi({
+        from: exportFrom || undefined,
+        to: exportTo || undefined,
+        polres_id: exportPolres || undefined,
+      })
+      success('File laporan polisi berhasil diunduh.')
+      setShowExportDialog(false)
+    } catch {
+      showError('Gagal mengekspor laporan polisi.')
+    } finally {
+      setExporting(false)
+    }
+  }
   
   // State untuk pagination
   const [page, setPage] = useState(1)
@@ -154,11 +180,77 @@ export function LaporanPolisiListPage() {
         <span className="text-xs text-muted-foreground">
           {loading ? 'Memuat...' : `${totalItems} laporan`}
         </span>
-        <Link href={`${base}/laporan-polisi/tambah`} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-          <FilePlus2 size={15} />
-          Tambah Laporan Baru
-        </Link>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => { setExportPolres(polresFilter); setShowExportDialog(true) }}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40 dark:hover:bg-emerald-950/50 transition-colors disabled:opacity-50"
+          >
+            <Download size={14} />
+            Export
+          </button>
+          <Link href={`${base}/laporan-polisi/tambah`} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+            <FilePlus2 size={15} />
+            Tambah Laporan Baru
+          </Link>
+        </div>
       </div>
+
+      {/* Dialog filter export */}
+      {showExportDialog && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4" onClick={() => !exporting && setShowExportDialog(false)}>
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <Download size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">Export Laporan ke Excel</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pilih rentang periode (berdasarkan Tanggal LP) dan Polres. Kosongkan tanggal untuk mengekspor semua data.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-foreground/80">Tanggal Awal (LP)</span>
+                  <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-foreground/80">Tanggal Akhir (LP)</span>
+                  <input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" />
+                </label>
+              </div>
+              {isAdmin && (
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-foreground/80">Polres</span>
+                  <select value={exportPolres} onChange={(e) => setExportPolres(e.target.value)}
+                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10">
+                    <option value="">Semua Polres</option>
+                    {polresList.map((p) => <option key={p.id} value={p.id}>{p.nama}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setShowExportDialog(false)} disabled={exporting}
+                className="rounded-lg border border-border/80 bg-card px-4 py-2 text-sm font-semibold hover:bg-muted transition-colors disabled:opacity-50">
+                Batal
+              </button>
+              <button onClick={handleExport} disabled={exporting}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50">
+                {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                Export XLSX
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-xl border bg-card shadow-xs overflow-hidden">
@@ -203,6 +295,9 @@ export function LaporanPolisiListPage() {
                     <tr key={l.id} className={`border-t hover:bg-muted/10 transition-colors ${i % 2 === 1 ? 'bg-muted/5' : ''}`}>
                       <td className="px-5 py-3">
                         <span className="font-mono text-xs font-semibold text-primary">{l.no_lp}</span>
+                        {l.polres?.nama && (
+                          <span className="block text-[10px] font-medium text-muted-foreground mt-0.5">{l.polres.nama}</span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-xs text-muted-foreground">{formatDate(l.tanggal_lp)}</td>
                       <td className="px-5 py-3 text-xs text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{l.lokasi_laka}</td>

@@ -24,6 +24,9 @@ import type {
   PerbandinganData,
   PerbandinganCideraData,
   TopPolresLpTerlamaItem,
+  TopPolresLakaItem,
+  TrenBulananItem,
+  HariKejadianItem,
 } from '@/lib/api'
 
 const COLORS = ['#4f46e5', '#7c3aed', '#a78bfa', '#ddd6fe']
@@ -120,11 +123,13 @@ function PerLoketBarChart({
 }
 
 function JenisLakaPieChart({ tunggal, total }: { tunggal: number; total: number }) {
+  const nonTunggal = Math.max(0, total - tunggal)
   const data = [
     { name: 'Laka Tunggal', value: tunggal },
-    { name: 'Laka Non-Tunggal', value: total - tunggal },
+    { name: 'Laka Non-Tunggal', value: nonTunggal },
   ]
-  return total > 0 ? (
+  const grand = tunggal + nonTunggal
+  return grand > 0 ? (
     <>
       <ResponsiveContainer width="100%" height={160}>
         <PieChart>
@@ -258,11 +263,11 @@ function PerbandinganPeriodeTable({ data, cidera }: { data?: PerbandinganData | 
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   <tr className="bg-white dark:bg-slate-950">
-                    <td className="px-4 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {fmtDateSlashed(data.periode_utama.tanggal_awal)} <span className="font-semibold text-slate-500 mx-1">S.D</span> {fmtDateSlashed(data.periode_utama.tanggal_akhir)}
                     </td>
-                    <td className="px-4 py-4 text-center text-xl font-black text-blue-600 dark:text-blue-400">{data.periode_utama.total_lp}</td>
-                    <td className="px-4 py-4 text-center text-xl font-black text-blue-600 dark:text-blue-400">{data.periode_utama.total_korban}</td>
+                    <td className="px-4 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{data.periode_utama.total_lp}</td>
+                    <td className="px-4 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{data.periode_utama.total_korban}</td>
                   </tr>
                   <tr className="bg-slate-50/50 dark:bg-slate-900/20">
                     <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -311,12 +316,12 @@ function PerbandinganPeriodeTable({ data, cidera }: { data?: PerbandinganData | 
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   <tr className="bg-white dark:bg-slate-950">
-                    <td className="px-4 py-4 text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       BULAN INI
                     </td>
-                    <td className="px-3 py-4 text-center text-lg font-black text-blue-600 dark:text-blue-400">{cidera.periode_utama.ll}</td>
-                    <td className="px-3 py-4 text-center text-lg font-black text-amber-600 dark:text-amber-500">{cidera.periode_utama.ll_md}</td>
-                    <td className="px-3 py-4 text-center text-lg font-black text-rose-600 dark:text-rose-500">{cidera.periode_utama.md}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_utama.ll}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_utama.ll_md}</td>
+                    <td className="px-3 py-3 text-center text-sm font-bold text-slate-500 dark:text-slate-400">{cidera.periode_utama.md}</td>
                   </tr>
                   <tr className="bg-slate-50/50 dark:bg-slate-900/20">
                     <td className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
@@ -874,6 +879,7 @@ function LakaMonitoringCards({
   topPolresLamaData,
   perbandinganData,
   perbandinganCideraData,
+  hariKejadianData,
 }: {
   statusData: StatusLpCardData | null
   breakdownData: BreakdownCardData | null
@@ -891,6 +897,7 @@ function LakaMonitoringCards({
   topPolresLamaData?: { nama: string; avgTelat: number }[] | null
   perbandinganData?: PerbandinganData | null
   perbandinganCideraData?: PerbandinganCideraData | null
+  hariKejadianData?: HariKejadianItem[] | null
 }) {
   const formatNum = (num: number) => new Intl.NumberFormat('id-ID').format(num)
   const displayPersen = (p?: string) => {
@@ -1296,7 +1303,7 @@ function LakaMonitoringCards({
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mt-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
         <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -1391,6 +1398,49 @@ function LakaMonitoringCards({
                 <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <AlertCircle size={16} />
                   Belum ada data korban
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* HARI KEJADIAN LAKA */}
+        <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-card p-6 shadow-xs hover:shadow-md transition-all duration-300 flex flex-col justify-between md:col-span-2 lg:col-span-1">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                HARI KEJADIAN LAKA
+              </span>
+              <div className="flex items-center justify-center bg-violet-50 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl p-2 shrink-0">
+                <CalendarDays size={20} />
+              </div>
+            </div>
+
+            <div className="h-[240px] w-full">
+              {hariKejadianData && hariKejadianData.some((d) => d.total_laka > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={hariKejadianData.map((d) => ({
+                      name: d.hari.charAt(0) + d.hari.slice(1).toLowerCase(),
+                      total: d.total_laka,
+                    }))}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} width={64} />
+                    <Tooltip
+                      formatter={(v) => [`${v} laka`, 'Jumlah']}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="total" fill="#8b5cf6" radius={[0, 5, 5, 0]} barSize={16} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground gap-2">
+                  <AlertCircle size={16} />
+                  Belum ada data hari kejadian
                 </div>
               )}
             </div>
@@ -1700,6 +1750,9 @@ function AdminDashboard({
   perbandinganData,
   perbandinganCideraData,
   topPolresLpTerlamaData,
+  topPolresLakaData,
+  trenBulananData,
+  hariKejadianData,
 }: {
   laporan: LaporanPolisi[]
   total: number
@@ -1721,6 +1774,9 @@ function AdminDashboard({
   perbandinganData?: PerbandinganData | null
   perbandinganCideraData?: PerbandinganCideraData | null
   topPolresLpTerlamaData?: TopPolresLpTerlamaItem[] | null
+  topPolresLakaData?: TopPolresLakaItem[] | null
+  trenBulananData?: TrenBulananItem[] | null
+  hariKejadianData?: HariKejadianItem[] | null
 }) {
   const base = useRoleBase()
   const today = new Date().toISOString().slice(0, 10)
@@ -1728,18 +1784,16 @@ function AdminDashboard({
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
   const totalKorban = laporan.reduce((sum, l) => sum + (l.korban?.length ?? 0), 0)
 
-  const monthlyMap: Record<string, number> = {}
-  laporan.forEach((l) => {
-    const m = l.tanggal_laka?.slice(0, 7)
-    if (m) monthlyMap[m] = (monthlyMap[m] ?? 0) + 1
-  })
-  const monthlyData = Object.entries(monthlyMap)
-    .sort(([a], [b]) => a.localeCompare(b)).slice(-6)
-    .map(([month, count]) => ({
-      name: new Date(month + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
-      count,
+  // Tren per bulan dari endpoint agregasi DB (akurat). Ambil 6 bulan terakhir.
+  const monthlyData = (trenBulananData ?? [])
+    .slice(-6)
+    .map((d) => ({
+      name: new Date(d.bulan + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+      count: d.total_lp,
     }))
 
+  // Top 10 Polres dengan laka tertinggi — dari endpoint khusus (akurat, agregasi DB).
+  // Fallback: hitung dari list bila endpoint belum ada datanya.
   const polresMap: Record<string, { nama: string; count: number }> = {}
   laporan.forEach((l) => {
     if (l.polres_id) {
@@ -1748,15 +1802,16 @@ function AdminDashboard({
       polresMap[key].count++
     }
   })
-  const topPolres = Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
-  // topPolresLama sekarang dari API (topPolresLpTerlamaData)
+  const topPolres = (topPolresLakaData && topPolresLakaData.length > 0)
+    ? topPolresLakaData.map((d) => ({ nama: d.nama_polres, count: d.total_laka }))
+    : Object.values(polresMap).sort((a, b) => b.count - a.count).slice(0, 10)
 
   return (
-    <SILakaShell title="Dashboard Admin" eyebrow="DEMO JR-PROJECT">
+    <SILakaShell title="Dashboard Admin" eyebrow="DEMO SI-LAKA">
       <PageHeader
         title="Dashboard"
         description="Ringkasan seluruh laporan kecelakaan lalu lintas di semua wilayah."
-        action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
+        // action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
       {filterProps && <DashboardFilterBar {...filterProps} />}
@@ -1778,6 +1833,7 @@ function AdminDashboard({
         topPolresLamaData={topPolresLpTerlamaData?.map(d => ({ nama: d.nama_polres, avgTelat: parseFloat(d.rata_rata_telat) })) ?? null}
         perbandinganData={perbandinganData}
         perbandinganCideraData={perbandinganCideraData}
+        hariKejadianData={hariKejadianData}
       />
 
       <div className="mt-8">
@@ -1809,7 +1865,10 @@ function AdminDashboard({
         <div className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
           <p className="mb-0.5 text-sm font-semibold text-foreground">Jenis Kecelakaan</p>
           <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs Laka Non-Tunggal</p>
-          <JenisLakaPieChart tunggal={lakaTunggal} total={total} />
+          <JenisLakaPieChart
+            tunggal={jenisLakaData?.laka_tunggal.total ?? lakaTunggal}
+            total={jenisLakaData?.total_laka ?? total}
+          />
         </div>
       </div>
 
@@ -1850,6 +1909,8 @@ function UserDashboard({
   perbandinganData,
   perbandinganCideraData,
   topPolresLpTerlamaData,
+  trenBulananData,
+  hariKejadianData,
 }: {
   laporan: LaporanPolisi[]
   wilayahNama: string
@@ -1872,6 +1933,9 @@ function UserDashboard({
   perbandinganData?: PerbandinganData | null
   perbandinganCideraData?: PerbandinganCideraData | null
   topPolresLpTerlamaData?: TopPolresLpTerlamaItem[] | null
+  topPolresLakaData?: TopPolresLakaItem[] | null
+  trenBulananData?: TrenBulananItem[] | null
+  hariKejadianData?: HariKejadianItem[] | null
 }) {
   const base = useRoleBase()
   const today = new Date().toISOString().slice(0, 10)
@@ -1879,24 +1943,20 @@ function UserDashboard({
   const lakaTunggal = laporan.filter((l) => l.laka_tunggal).length
   const totalKorban = laporan.reduce((sum, l) => sum + (l.korban?.length ?? 0), 0)
 
-  const monthlyMap: Record<string, number> = {}
-  laporan.forEach((l) => {
-    const m = l.tanggal_laka?.slice(0, 7)
-    if (m) monthlyMap[m] = (monthlyMap[m] ?? 0) + 1
-  })
-  const monthlyData = Object.entries(monthlyMap)
-    .sort(([a], [b]) => a.localeCompare(b)).slice(-6)
-    .map(([month, count]) => ({
-      name: new Date(month + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
-      count,
+  // Tren per bulan dari endpoint agregasi DB (akurat). Ambil 6 bulan terakhir.
+  const monthlyData = (trenBulananData ?? [])
+    .slice(-6)
+    .map((d) => ({
+      name: new Date(d.bulan + '-01').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+      count: d.total_lp,
     }))
 
   return (
-    <SILakaShell title="Dashboard" eyebrow="DEMO JR-PROJECT">
+    <SILakaShell title="Dashboard" eyebrow="DEMO SI-LAKA">
       <PageHeader
         title="Dashboard"
         description={wilayahNama ? `Data laporan kecelakaan lalu lintas wilayah ${wilayahNama}.` : 'Selamat datang di sistem monitoring laka lantas.'}
-        action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
+        // action={<Button href={`${base}/laporan-polisi/tambah`}><FilePlus2 size={16} /> Buat Laporan</Button>}
       />
 
       {filterProps && <DashboardFilterBar {...filterProps} />}
@@ -1917,6 +1977,7 @@ function UserDashboard({
         topPolresLamaData={topPolresLpTerlamaData?.map(d => ({ nama: d.nama_polres, avgTelat: parseFloat(d.rata_rata_telat) })) ?? null}
         perbandinganData={perbandinganData}
         perbandinganCideraData={perbandinganCideraData}
+        hariKejadianData={hariKejadianData}
       />
 
       <div className="mt-8">
@@ -1948,7 +2009,10 @@ function UserDashboard({
         <div className="rounded-xl border bg-card p-5 shadow-xs hover:shadow-md transition-all duration-300">
           <p className="mb-0.5 text-sm font-semibold text-foreground">Jenis Kecelakaan</p>
           <p className="mb-4 text-xs text-muted-foreground">Laka tunggal vs multi pihak</p>
-          <JenisLakaPieChart tunggal={lakaTunggal} total={total} />
+          <JenisLakaPieChart
+            tunggal={jenisLakaData?.laka_tunggal.total ?? lakaTunggal}
+            total={jenisLakaData?.total_laka ?? total}
+          />
         </div>
       </div>
 
@@ -2040,6 +2104,9 @@ export function DashboardPage() {
   const [perbandinganData, setPerbandinganData] = useState<PerbandinganData | null>(null)
   const [perbandinganCideraData, setPerbandinganCideraData] = useState<PerbandinganCideraData | null>(null)
   const [topPolresLpTerlamaData, setTopPolresLpTerlamaData] = useState<TopPolresLpTerlamaItem[] | null>(null)
+  const [topPolresLakaData, setTopPolresLakaData] = useState<TopPolresLakaItem[] | null>(null)
+  const [trenBulananData, setTrenBulananData] = useState<TrenBulananItem[] | null>(null)
+  const [hariKejadianData, setHariKejadianData] = useState<HariKejadianItem[] | null>(null)
   const [trendData, setTrendData] = useState<any>(null)
   const [trendLoading, setTrendLoading] = useState(false)
   const [trendError, setTrendError] = useState<string | null>(null)
@@ -2071,6 +2138,9 @@ export function DashboardPage() {
           topKecamatanRes,
           topRumahSakitRes,
           topPolresLpTerlamaRes,
+          topPolresLakaRes,
+          trenBulananRes,
+          hariKejadianRes,
         ] = await Promise.all([
           laporanApi.statusLp({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           laporanApi.breakdownTerlambat({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
@@ -2085,6 +2155,9 @@ export function DashboardPage() {
           chartApi.topKecamatanLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           chartApi.topRumahSakitKorban({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
           chartApi.topPolresLpTerlama({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.topPolresLaka({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.trenBulanan({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
+          chartApi.hariKejadian({ from: from || undefined, to: to || undefined, polres_id: polres !== 'ALL' ? polres : undefined }).catch(() => null),
         ])
 
         // Perbandingan 2 periode (mundur 1 bulan otomatis) — pakai rentang & polres dari filter
@@ -2114,6 +2187,9 @@ export function DashboardPage() {
         if (topKecamatanRes) setTopKecamatanData(topKecamatanRes.data.data)
         if (topRumahSakitRes) setTopRumahSakitData(topRumahSakitRes.data.data)
         if (topPolresLpTerlamaRes) setTopPolresLpTerlamaData(topPolresLpTerlamaRes.data.data)
+        if (topPolresLakaRes) setTopPolresLakaData(topPolresLakaRes.data.data)
+        if (trenBulananRes) setTrenBulananData(trenBulananRes.data.data)
+        if (hariKejadianRes) setHariKejadianData(hariKejadianRes.data.data)
       } catch (err) {
         setError('Gagal memuat data dari server.')
       } finally {
@@ -2210,6 +2286,9 @@ export function DashboardPage() {
       perbandinganData={perbandinganData}
       perbandinganCideraData={perbandinganCideraData}
       topPolresLpTerlamaData={topPolresLpTerlamaData}
+      topPolresLakaData={topPolresLakaData}
+      trenBulananData={trenBulananData}
+      hariKejadianData={hariKejadianData}
     />
     : <UserDashboard
       filterProps={filterProps}
@@ -2234,5 +2313,11 @@ export function DashboardPage() {
       perbandinganData={perbandinganData}
       perbandinganCideraData={perbandinganCideraData}
       topPolresLpTerlamaData={topPolresLpTerlamaData}
+      topPolresLakaData={topPolresLakaData}
+      trenBulananData={trenBulananData}
+      hariKejadianData={hariKejadianData}
     />
 }
+
+
+

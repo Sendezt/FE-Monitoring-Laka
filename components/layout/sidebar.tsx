@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/auth-store'
 import { useRoleBase } from '@/lib/role-base'
+import { useIsSuperadmin } from '@/lib/role-base'
 
 function NavLink({
   href, icon: Icon, label, active, onClick, indent = false
@@ -45,6 +46,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const pathname = usePathname()
   const { user, logout, init } = useAuthStore()
   const base = useRoleBase()
+  const isSuperadmin = useIsSuperadmin()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
   const isAdmin = user?.role === 'admin'
@@ -74,7 +76,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <Shield size={18} className="text-white" />
         </div>
         <div className="relative min-w-0 flex-1">
-          <p className="text-sm font-black tracking-tight text-sidebar-foreground leading-none">DEMO JR-PROJECT</p>
+          <p className="text-sm font-black tracking-tight text-sidebar-foreground leading-none">DEMO SI-LAKA</p>
           <p className="text-[10px] font-semibold tracking-widest uppercase text-sidebar-foreground/45 leading-none mt-0.5">
             Tahap Pengembangan
           </p>
@@ -114,8 +116,13 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             <div className="flex flex-col gap-0.5">
               <NavLink href={`${base}/monitor-polres`} icon={Monitor} label="Monitoring Data" active={pathname === `${base}/monitor-polres`} onClick={handleLinkClick} />
               <NavLink href={`${base}/rekapitulasi`} icon={TableProperties} label="Rekapitulasi Data" active={pathname === `${base}/rekapitulasi`} onClick={handleLinkClick} />
-              <NavLink href={`${base}/master-data`} icon={Database} label="Kelola Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
-              <NavLink href={`${base}/migrasi`} icon={FileSpreadsheet} label="Migrasi Data" active={pathname === `${base}/migrasi`} onClick={handleLinkClick} />
+              {/* Migrasi Data & Kelola Data Master hanya untuk superadmin (wilayah_id null) */}
+              {isSuperadmin && (
+                <>
+                  <NavLink href={`${base}/master-data`} icon={Database} label="Kelola Data Master" active={pathname.startsWith(`${base}/master-data`)} onClick={handleLinkClick} />
+                  <NavLink href={`${base}/migrasi`} icon={FileSpreadsheet} label="Migrasi Data" active={pathname === `${base}/migrasi`} onClick={handleLinkClick} />
+                </>
+              )}
               <NavLink href={`${base}/users`} icon={Users} label="Kelola Pengguna" active={pathname === `${base}/users`} onClick={handleLinkClick} />
               <NavLink href={`${base}/activity-log`} icon={Activity} label="Riwayat Aktivitas" active={pathname === `${base}/activity-log`} onClick={handleLinkClick} />
             </div>
@@ -187,3 +194,4 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     </aside>
   )
 }
+

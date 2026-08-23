@@ -5,7 +5,7 @@ import { Sidebar } from './sidebar'
 import { Topbar } from './topbar'
 import { useLayoutStore } from '@/lib/layout-store'
 
-export function AppShell({ children, title = 'Dashboard', eyebrow = 'DEMO JR-PROJECT' }: { children: React.ReactNode; title?: string; eyebrow?: string }) {
+export function AppShell({ children, title = 'Dashboard', eyebrow = 'DEMO SI-LAKA' }: { children: React.ReactNode; title?: string; eyebrow?: string }) {
   const { sidebarOpen, setSidebarOpen, toggleSidebar } = useLayoutStore()
 
   // Close sidebar by default on mobile screens (less than 768px width)
@@ -29,9 +29,10 @@ export function AppShell({ children, title = 'Dashboard', eyebrow = 'DEMO JR-PRO
         <Topbar title={title} eyebrow={eyebrow} onMenu={toggleSidebar} />
         <main className="min-h-[calc(100vh-5rem)] px-4 py-6 md:px-8 md:py-8">{children}</main>
         <footer className="border-t px-4 py-5 text-center text-xs text-muted-foreground md:px-8">
-          DEMO JR-PROJECT · Tahap Pengembangan · v0.1.0
+          DEMO SI-LAKA · Tahap Pengembangan · v0.1.0
         </footer>
       </div>
     </div>
   )
 }
+

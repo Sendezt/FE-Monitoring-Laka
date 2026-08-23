@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays, Download, Loader2, AlertCircle, TableProperties } from 'lucide-react'
 import { SILakaShell } from '@/components/si-laka-shell'
-import { laporanApi, masterApi, type RekapRow, type MasterItem } from '@/lib/api'
+import { laporanApi, masterApi, exportApi, type RekapRow, type MasterItem } from '@/lib/api'
 import { useAuthStore } from '@/lib/auth-store'
 import { useFilterStore } from '@/lib/filter-store'
+import { useToast } from '@/components/ui/toast-provider'
 
 // ─── Column definition ─────────────────────────────────────────────────────────
 const COLS: { key: keyof RekapRow; label: string; group: string }[] = [
@@ -193,6 +194,24 @@ export function RekapitulasiPage() {
   const [loketTotals, setLoketTotals] = useState<RekapRow | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportApi.rekapitulasi({
+        from: from || undefined,
+        to: to || undefined,
+        polres_id: polres !== 'ALL' ? polres : undefined,
+      })
+      toastSuccess('File rekapitulasi berhasil diunduh.')
+    } catch {
+      toastError('Gagal mengekspor rekapitulasi.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // Load polres list
   useEffect(() => {
@@ -233,13 +252,25 @@ export function RekapitulasiPage() {
 
   return (
     <SILakaShell title="Rekapitulasi Data" eyebrow="Monitoring Laka">
-      <FilterBar
-        from={from} setFrom={setFrom}
-        to={to} setTo={setTo}
-        polres={polres} setPolres={setPolres}
-        polresList={polresList}
-        isAdmin={isAdmin}
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+        <div className="flex-1">
+          <FilterBar
+            from={from} setFrom={setFrom}
+            to={to} setTo={setTo}
+            polres={polres} setPolres={setPolres}
+            polresList={polresList}
+            isAdmin={isAdmin}
+          />
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting || loading}
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40 dark:hover:bg-emerald-950/50 transition-colors disabled:opacity-50 shrink-0"
+        >
+          {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+          Export
+        </button>
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-24 text-muted-foreground text-sm">

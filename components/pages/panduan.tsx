@@ -21,6 +21,7 @@ interface GuideSection {
   summary: string
   steps: GuideStep[]
   adminOnly?: boolean
+  superadminOnly?: boolean
 }
 
 const SECTIONS: GuideSection[] = [
@@ -77,7 +78,7 @@ const SECTIONS: GuideSection[] = [
     icon: Database,
     title: 'Kelola Data Master',
     summary: 'Mengatur data referensi: wilayah, polres, kecamatan, kelurahan, rumah sakit, cidera, profesi, dan lainnya.',
-    adminOnly: true,
+    superadminOnly: true,
     steps: [
       { title: 'Pilih entitas', desc: 'Buka salah satu kategori data master untuk melihat daftarnya.' },
       { title: 'Tambah / ubah / hapus', desc: 'Kelola isi master data. Data ini dipakai sebagai acuan saat input laporan dan migrasi.' },
@@ -87,7 +88,7 @@ const SECTIONS: GuideSection[] = [
     icon: FileSpreadsheet,
     title: 'Migrasi Data',
     summary: 'Menarik data dari Google Spreadsheet per Polres, memvalidasi terhadap data master, lalu memasukkannya ke database.',
-    adminOnly: true,
+    superadminOnly: true,
     steps: [
       { title: 'Pilih Sheet & baris', desc: 'Pilih Sheet/Polres (1-35) dan tentukan rentang baris awal-akhir yang ingin ditarik, lalu klik "Refresh Data".' },
       { title: 'Periksa status baris', desc: 'Hijau = siap masuk, Kuning = ada data yang belum cocok dengan master, Merah = No LP sudah ada di Polres itu. Klik ikon panah untuk melihat detail tiap baris.' },
@@ -97,10 +98,10 @@ const SECTIONS: GuideSection[] = [
   {
     icon: Users,
     title: 'Kelola Pengguna',
-    summary: 'Menambah dan mengatur akun pengguna beserta peran (admin/user) dan wilayahnya.',
+    summary: 'Menambah dan mengatur akun pengguna beserta peran dan wilayahnya.',
     adminOnly: true,
     steps: [
-      { title: 'Tambah pengguna', desc: 'Klik "Tambah Pengguna", isi data akun, pilih peran. Untuk peran user, tentukan wilayahnya.' },
+      { title: 'Tambah pengguna', desc: 'Klik "Tambah Pengguna", isi data akun. Admin wilayah hanya dapat membuat akun User; pembuatan akun Admin khusus Superadmin.' },
       { title: 'Pantau daftar', desc: 'Lihat daftar pengguna beserta status aktifnya.' },
     ],
   },
@@ -124,17 +125,36 @@ const QUICK_ACTIONS = [
 const QUICK_ACTIONS_ADMIN = [
   { icon: UploadCloud, label: 'Migrasi dari Google Sheets', desc: 'Menu Migrasi Data → pilih Sheet → Check → Add to DB' },
   { icon: Database, label: 'Atur data master', desc: 'Menu Kelola Data Master → pilih entitas' },
+]
+
+const QUICK_ACTIONS_USERS = [
   { icon: Users, label: 'Tambah pengguna', desc: 'Menu Kelola Pengguna → Tambah Pengguna' },
 ]
 
 export function PanduanPage() {
   const base = useRoleBase()
   const role = useAuthStore((s) => s.user?.role)
+  const wilayahId = useAuthStore((s) => s.user?.wilayah_id)
   const isAdmin = role === 'admin'
+  const isSuperadmin = isAdmin && (wilayahId === null || wilayahId === undefined)
   const [open, setOpen] = useState<number | null>(0)
 
-  const sections = SECTIONS.filter((s) => (s.adminOnly ? isAdmin : true))
-  const quickActions = isAdmin ? [...QUICK_ACTIONS, ...QUICK_ACTIONS_ADMIN] : QUICK_ACTIONS
+  const sections = SECTIONS.filter((s) => {
+    if (s.superadminOnly) return isSuperadmin
+    if (s.adminOnly) return isAdmin
+    return true
+  })
+
+  // Superadmin: tidak input laporan; punya migrasi + master + users.
+  // Admin wilayah: input laporan; punya users (buat user saja).
+  let quickActions = [...QUICK_ACTIONS]
+  if (isSuperadmin) {
+    // Superadmin tidak menginput laporan → buang aksi "Tambah laporan baru"
+    quickActions = quickActions.filter((qa) => qa.label !== 'Tambah laporan baru')
+    quickActions = [...quickActions, ...QUICK_ACTIONS_ADMIN, ...QUICK_ACTIONS_USERS]
+  } else if (isAdmin) {
+    quickActions = [...quickActions, ...QUICK_ACTIONS_USERS]
+  }
 
   return (
     <SILakaShell title="Panduan Penggunaan" eyebrow="Bantuan">
@@ -209,8 +229,10 @@ export function PanduanPage() {
         <div className="flex items-start gap-2.5">
           <Info size={16} className="mt-0.5 shrink-0 text-primary" />
           <div className="text-xs text-muted-foreground leading-relaxed">
-            {isAdmin ? (
-              <>Sebagai Administrator, Anda memiliki akses penuh ke seluruh Polres dan data master. Perubahan yang Anda lakukan tercatat di menu Riwayat Aktivitas.</>
+            {isSuperadmin ? (
+              <>Sebagai Superadmin, Anda memiliki akses penuh: seluruh Polres, data master, migrasi data, dan pembuatan akun admin. Namun Superadmin tidak menginput laporan kecelakaan — gunakan akun admin wilayah untuk pencatatan.</>
+            ) : isAdmin ? (
+              <>Sebagai Admin wilayah, Anda dapat menginput dan mengelola laporan di wilayah Anda serta membuat akun User. Menu Migrasi Data & Kelola Data Master hanya tersedia untuk Superadmin.</>
             ) : (
               <>Sebagai Pengguna, Anda hanya dapat melihat dan mengelola data pada wilayah/Polres Anda sendiri. Hubungi Administrator bila membutuhkan akses tambahan.</>
             )}
