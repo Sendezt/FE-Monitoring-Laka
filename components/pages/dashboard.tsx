@@ -113,7 +113,7 @@ function PerLoketBarChart({
         />
         <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} allowDecimals={false} axisLine={false} tickLine={false} />
         <Tooltip
-          formatter={(v: number) => [`${v} ${unitLabel}`, 'Total']}
+          formatter={(v: any) => [`${v ?? 0} ${unitLabel}`, "Total"]}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
         <Bar dataKey="value" fill={color} radius={[5, 5, 0, 0]}>
@@ -498,7 +498,7 @@ function VerticalDetailBarChart({
           width={35}
         />
         <Tooltip
-          formatter={(value: number, name: string, props: any) => {
+          formatter={(value: any, name: any, props: any) => {
             const pct = props.payload?.percentage
             return [`${value} ${unitLabel}${pct ? ` (${pct})` : ''}`, 'Total']
           }}
@@ -559,7 +559,7 @@ function HorizontalDetailBarChart({
           tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 18)}…` : v)}
         />
         <Tooltip
-          formatter={(value: number, name: string, props: any) => {
+          formatter={(value: any, name: any, props: any) => {
             const pct = props.payload?.percentage
             return [`${value} ${unitLabel}${pct ? ` (${pct})` : ''}`, 'Total']
           }}
@@ -607,7 +607,7 @@ function TopKecamatanBarChart({
           width={35}
         />
         <Tooltip
-          formatter={(value: number) => [`${value} laka`, 'Total']}
+          formatter={(value: any) => [`${value} laka`, 'Total']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
         <Bar dataKey="value" fill="#f59e0b" radius={[4, 4, 0, 0]}>
@@ -676,7 +676,7 @@ function TopRumahSakitBarChart({
           tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 18)}…` : v)}
         />
         <Tooltip
-          formatter={(value: number) => [`${value} korban`, 'Total']}
+          formatter={(value: any) => [`${value} korban`, 'Total']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
         <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]}>
@@ -731,7 +731,7 @@ function TopPolresBarChart({
           tickFormatter={(v: string) => (v.length > 12 ? `${v.slice(0, 12)}…` : v)}
         />
         <Tooltip
-          formatter={(value: number) => [`${value} laka`, 'Total']}
+          formatter={(value: any) => [`${value} laka`, 'Total']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
         <Bar dataKey="value" fill="#9333ea" radius={[0, 8, 8, 0]}>
@@ -816,7 +816,7 @@ function TrendLineChart({
           <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} allowDecimals={false} />
           <Tooltip
             contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
-            formatter={(value: number, name: string) => [`${value}`, name]}
+            formatter={(value: any, name: any) => [`${value}`, name]}
           />
           <Legend
             verticalAlign="top"
@@ -1730,7 +1730,7 @@ function TopLpTerlamaBarChart({ data }: { data: { nama: string; avgTelat: number
           tickFormatter={(v: string) => (v.length > 12 ? `${v.slice(0, 12)}…` : v)}
         />
         <Tooltip
-          formatter={(value: number) => [`${value} hari`, 'Rata-rata Telat']}
+          formatter={(value: any) => [`${value} hari`, 'Rata-rata Telat']}
           contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
         />
         <Bar dataKey="value" fill="#e11d48" radius={[0, 8, 8, 0]}>
@@ -1740,7 +1740,7 @@ function TopLpTerlamaBarChart({ data }: { data: { nama: string; avgTelat: number
             fontSize={11}
             fontWeight="bold"
             fill="#e11d48"
-            formatter={(v: number) => `${v} hari`}
+            formatter={(v: any) => `${v} hari`}
           />
         </Bar>
       </BarChart>
@@ -1776,6 +1776,7 @@ function AdminDashboard({
   trenBulananData,
   hariKejadianData,
 }: {
+  filterProps?: DashboardFilterProps
   laporan: LaporanPolisi[]
   total: number
   statusData: StatusLpCardData | null
@@ -1919,6 +1920,7 @@ function UserDashboard({
   trenBulananData,
   hariKejadianData,
 }: {
+  filterProps?: DashboardFilterProps
   laporan: LaporanPolisi[]
   wilayahNama: string
   total: number
@@ -2034,13 +2036,24 @@ function UserDashboard({
 }
 
 
+type DashboardFilterProps = {
+  filterTanggalAwal: string
+  setFilterTanggalAwal: (v: string) => void
+  filterTanggalAkhir: string
+  setFilterTanggalAkhir: (v: string) => void
+  filterPolres: string
+  setFilterPolres: (v: string) => void
+  polresList: MasterItem[]
+  isAdmin: boolean
+}
+
 function DashboardFilterBar({
   filterTanggalAwal, setFilterTanggalAwal,
   filterTanggalAkhir, setFilterTanggalAkhir,
   filterPolres, setFilterPolres,
   polresList,
   isAdmin
-}: any) {
+}: DashboardFilterProps) {
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 bg-card border border-border/60 rounded-xl p-3 shadow-xs">
       <div className="flex items-center gap-3 border border-border/80 rounded-lg px-3 py-1.5 bg-background w-full sm:w-auto">
