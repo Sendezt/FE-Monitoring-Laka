@@ -229,9 +229,9 @@ function SpreadsheetView({ laporan, polresList, mapKasusTabrak, mapFaktorPenyeba
               const st = statusLp(lap)
               const kendKorban = (lap.kendaraan || []).filter((k) => k.peran === 'korban')
               const kendPenjamin = (lap.kendaraan || []).filter((k) => k.peran === 'penjamin')
-              const rsSendiri = (lap.rumah_sakit_wilayah && /sendiri/i.test(lap.rumah_sakit_wilayah)) ? lap.rumah_sakit_wilayah : '-'
-              const rsLain = (lap.rumah_sakit_wilayah && /lain/i.test(lap.rumah_sakit_wilayah)) ? lap.rumah_sakit_wilayah : '-'
-              const noRs = !lap.rumah_sakit_wilayah || (rsSendiri === '-' && rsLain === '-') ? (lap.rumah_sakit_wilayah || '-') : null
+              const rsSendiri = korban?.rumahSakit?.nama || (korban?.rumah_sakit_id ? `RS ID ${korban.rumah_sakit_id}` : '-')
+              const rsLain = korban?.rumah_sakit_wilayah || '-'
+              const noRs = null
               return (
                 <tr key={`${lap.id}-${korban?.id || 'n'}`} className="hover:bg-muted/30">
                   {idx === 0 && (
@@ -254,7 +254,7 @@ function SpreadsheetView({ laporan, polresList, mapKasusTabrak, mapFaktorPenyeba
                       <td className="border border-border/50 px-1.5 py-1">{lap.kecamatan?.nama || '-'}</td>
                       <td className="border border-border/50 px-1.5 py-1">{lap.kelurahan?.nama || '-'}</td>
                       <td className="border border-border/50 px-1.5 py-1">{lap.lokasi_laka || '-'}</td>
-                      <td className="border border-border/50 px-1.5 py-1">{noRs || rsSendiri}</td>
+                      <td className="border border-border/50 px-1.5 py-1">{rsSendiri}</td>
                       <td className="border border-border/50 px-1.5 py-1">{rsLain}</td>
                       <td className="border border-border/50 px-1.5 py-1 text-center">{lap.laka_tunggal ? 'Ya' : 'Tidak'}</td>
                       <td className="border border-border/50 px-1.5 py-1">{korban?.tindakLanjut?.nama || '-'}</td>

@@ -47,11 +47,14 @@ function evaluateRow(payload: MigrasiPayload, raw: MigrasiRow['raw'], duplicate:
 
   const issues: { field: string; value: string }[] = []
   const optional: [keyof MigrasiPayload, string | undefined, string][] = [
-    ['rumah_sakit_id', raw.rs_sendiri, 'rumah_sakit'],
     ['kasus_tabrak_kecelakaan_id', raw.kasus_tabrakan, 'kasus_tabrakan'],
     ['faktor_penyebab_laka_id', raw.faktor_penyebab, 'faktor_penyebab'],
     ['sifat_laka_id', raw.sifat_laka, 'sifat_laka'],
   ]
+  if (raw.rs_sendiri && payload.korban.some((k) => !k.rumah_sakit_id)) {
+    issues.push({ field: 'rumah_sakit', value: raw.rs_sendiri })
+  }
+
   optional.forEach(([idField, rawText, name]) => {
     if (!payload[idField] && rawText) issues.push({ field: name, value: rawText })
   })
@@ -837,26 +840,6 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
 
           <DetailField label="Lokasi Laka" value={payload.lokasi_laka} warnEmpty />
 
-          {/* Rumah Sakit — editable (opsional), dikunci ke wilayah polres sheet */}
-          {masters ? (
-            <EditableMasterField
-              label="RS Wil. Sendiri"
-              currentId={payload.rumah_sakit_id}
-              currentName={labels?.rumah_sakit}
-              sheetText={raw.rs_sendiri}
-              options={rumahSakitOptions}
-              invalid={!!raw.rs_sendiri && !payload.rumah_sakit_id}
-              onChange={(id) => onEdit((p) => {
-                p.rumah_sakit_id = id
-                const rs = rumahSakitOptions.find((x) => x.id === id)
-                if (p.labels) p.labels.rumah_sakit = rs?.nama ?? null
-              })}
-            />
-          ) : (
-            <DetailField label="RS Wil. Sendiri" value={mapValue(payload.rumah_sakit_id, labels?.rumah_sakit, raw.rs_sendiri)} invalid={!!raw.rs_sendiri && !payload.rumah_sakit_id} />
-          )}
-
-          <DetailField label="RS Wil. Lain" value={payload.rumah_sakit_wilayah} warnEmpty />
           <DetailField label="Laka Tunggal" value={payload.laka_tunggal ? 'Ya' : 'Tidak'} />
 
           {/* Kasus Tabrakan — editable */}
@@ -1009,6 +992,7 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
                   <th className="py-1.5 pr-3 font-semibold">Tindak Lanjut</th>
                   <th className="py-1.5 pr-3 font-semibold">Jenis Jaminan</th>
                   <th className="py-1.5 pr-3 font-semibold">Keterjaminan</th>
+                  <th className="py-1.5 pr-3 font-semibold">Rumah Sakit</th>
                   <th className="py-1.5 pr-3 font-semibold">Kendaraan</th>
                 </tr>
               </thead>

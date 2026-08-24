@@ -22,6 +22,8 @@ interface VehicleForm { id?: number; peran: 'korban' | 'penjamin'; jenis_kendara
 interface VictimForm {
   id?: number
   nama: string
+  rumah_sakit_id: string
+  rumah_sakit_wilayah: string
   usia: string
   profesi_id: string
   cidera_id: string
@@ -34,6 +36,8 @@ interface VictimForm {
 const emptyVehicle = (): VehicleForm => ({ peran: 'korban', jenis_kendaraan_id: '', nopol: '', masa_laku_sw: '' })
 const emptyVictim = (): VictimForm => ({
   nama: '',
+  rumah_sakit_id: '',
+  rumah_sakit_wilayah: '',
   usia: '',
   profesi_id: '',
   cidera_id: '',
@@ -105,8 +109,6 @@ export function LaporanEditPage() {
   const [sifatLakaId, setSifatLakaId] = useState('')
   const [faktorId, setFaktorId] = useState('')
   const [kasusId, setKasusId] = useState('')
-  const [rumahSakitId, setRumahSakitId] = useState('')
-  const [rumahSakitWilayah, setRumahSakitWilayah] = useState('')
   const [vehicles, setVehicles] = useState<VehicleForm[]>([])
   const [victims, setVictims] = useState<VictimForm[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -139,8 +141,6 @@ export function LaporanEditPage() {
       setSifatLakaId(data.sifat_laka_id ? String(data.sifat_laka_id) : '')
       setFaktorId(data.faktor_penyebab_laka_id ? String(data.faktor_penyebab_laka_id) : '')
       setKasusId(data.kasus_tabrak_kecelakaan_id ? String(data.kasus_tabrak_kecelakaan_id) : '')
-      setRumahSakitId(data.rumah_sakit_id ? String(data.rumah_sakit_id) : '')
-      setRumahSakitWilayah(data.rumah_sakit_wilayah || '')
 
       setVehicles((data.kendaraan || []).map(v => ({
         id: v.id,
@@ -159,7 +159,9 @@ export function LaporanEditPage() {
         kendaraan_index: String(v.kendaraan_index || (v.kendaraan_id ? data.kendaraan?.findIndex(k => k.id === v.kendaraan_id) ?? 0 : 0)),
         tindak_lanjut_id: v.tindak_lanjut_id ? String(v.tindak_lanjut_id) : (v.tindakLanjut?.id ? String(v.tindakLanjut.id) : ''),
         jenis_jaminan_id: v.jenis_jaminan_id ? String(v.jenis_jaminan_id) : (v.jenisJaminan?.id ? String(v.jenisJaminan.id) : ''),
-        keterjaminan_id: v.keterjaminan_id ? String(v.keterjaminan_id) : (v.keterjaminan?.id ? String(v.keterjaminan.id) : '')
+        keterjaminan_id: v.keterjaminan_id ? String(v.keterjaminan_id) : (v.keterjaminan?.id ? String(v.keterjaminan.id) : ''),
+        rumah_sakit_id: v.rumah_sakit_id ? String(v.rumah_sakit_id) : '',
+        rumah_sakit_wilayah: v.rumah_sakit_wilayah || ''
       })))
 
       if (!data.kendaraan?.length) setVehicles([emptyVehicle()])
@@ -196,8 +198,6 @@ export function LaporanEditPage() {
       sifat_laka_id: sifatLakaId ? Number(sifatLakaId) : null,
       faktor_penyebab_laka_id: faktorId ? Number(faktorId) : null,
       kasus_tabrak_kecelakaan_id: kasusId ? Number(kasusId) : null,
-      rumah_sakit_id: rumahSakitId ? Number(rumahSakitId) : null,
-      rumah_sakit_wilayah: rumahSakitWilayah || null,
       // API might handle full replacement or we just send the new arrays
       kendaraan: vehicles.map((v) => ({
         id: v.id,
@@ -216,6 +216,8 @@ export function LaporanEditPage() {
         tindak_lanjut_id: v.tindak_lanjut_id ? Number(v.tindak_lanjut_id) : undefined,
         jenis_jaminan_id: v.jenis_jaminan_id ? Number(v.jenis_jaminan_id) : undefined,
         keterjaminan_id: v.keterjaminan_id ? Number(v.keterjaminan_id) : undefined,
+        rumah_sakit_id: v.rumah_sakit_id ? Number(v.rumah_sakit_id) : null,
+        rumah_sakit_wilayah: v.rumah_sakit_wilayah || null,
       })),
     }
 
@@ -307,17 +309,6 @@ export function LaporanEditPage() {
             </Field>
             <Field label="Jalan / Tempat Kejadian" required>
               <input required value={lokasi} onChange={(e) => setLokasi(e.target.value)} placeholder="Jl. Slamet Riyadi No. 10" className={inputClass} />
-            </Field>
-            <Field label="Rumah Sakit">
-              <SearchableSelect
-                options={rumahSakit}
-                value={rumahSakitId}
-                onChange={(id) => setRumahSakitId(id ? String(id) : '')}
-                placeholder="Pilih rumah sakit"
-              />
-            </Field>
-            <Field label="RS Luar Wilayah (Opsional)">
-              <input value={rumahSakitWilayah} onChange={(e) => setRumahSakitWilayah(e.target.value)} placeholder="Nama RS jika tidak ada di daftar" className={inputClass} />
             </Field>
           </div>
         </section>
@@ -473,6 +464,12 @@ export function LaporanEditPage() {
                       placeholder="Pilih keterjaminan"
                     />
                   </Field>
+                          <Field label="Rumah Sakit">
+                            <SearchableSelect options={rumahSakit} value={v.rumah_sakit_id} onChange={(id) => setVictims(victims.map((x, j) => j === i ? { ...x, rumah_sakit_id: id ? String(id) : '' } : x))} placeholder="Pilih rumah sakit" />
+                          </Field>
+                          <Field label="RS Luar Wilayah (Opsional)">
+                            <input value={v.rumah_sakit_wilayah} onChange={(e) => setVictims(victims.map((x, j) => j === i ? { ...x, rumah_sakit_wilayah: e.target.value } : x))} placeholder="Rumah sakit wilayah lain" className={inputClass} />
+                          </Field>
                 </div>
               </div>
             ))}

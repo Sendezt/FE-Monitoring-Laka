@@ -82,6 +82,9 @@ export interface Kendaraan {
 
 export interface Korban {
   id?: number
+  rumah_sakit_id?: number | null
+  rumah_sakit_wilayah?: string | null
+  rumahSakit?: { id: number; nama: string }
   nama: string
   usia: number
   profesi_id?: number
@@ -109,8 +112,6 @@ export interface LaporanPolisi {
   kecamatan_id: number
   kelurahan_id: number
   lokasi_laka: string
-  rumah_sakit_id?: number
-  rumah_sakit_wilayah?: string
   laka_tunggal: boolean
   kasus_tabrak_kecelakaan_id?: number
   faktor_penyebab_laka_id?: number
@@ -134,8 +135,6 @@ export interface CreateLaporanPayload {
   kecamatan_id: number
   kelurahan_id: number
   lokasi_laka: string
-  rumah_sakit_id?: number | null
-  rumah_sakit_wilayah?: string | null
   laka_tunggal: boolean
   kasus_tabrak_kecelakaan_id?: number | null
   faktor_penyebab_laka_id?: number | null
@@ -427,6 +426,9 @@ export interface MigrasiKendaraanPayload {
 
 export interface MigrasiKorbanPayload {
   nama: string
+  rumah_sakit_id: number | null
+  rumah_sakit_nama?: string | null
+  rumah_sakit_wilayah: string | null
   usia: number | null
   profesi_id: number | null
   profesi_nama?: string | null
@@ -461,8 +463,6 @@ export interface MigrasiPayload {
   kecamatan_id: number | null
   kelurahan_id: number | null
   lokasi_laka: string
-  rumah_sakit_id: number | null
-  rumah_sakit_wilayah: string | null
   laka_tunggal: boolean
   kasus_tabrak_kecelakaan_id: number | null
   faktor_penyebab_laka_id: number | null

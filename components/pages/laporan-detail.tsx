@@ -96,49 +96,6 @@ export function LaporanDetailPage() {
       </div>
 
       <div className="space-y-5">
-        {/* ── Header ── */}
-        <div className="rounded-xl border bg-card p-6 shadow-xs">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <FileText size={18} />
-            </div>
-            <div>
-              <h2 className="font-black text-xl tracking-tight">{laporan.no_lp}</h2>
-              <p className="text-xs text-muted-foreground">{laporan.hari_kejadian}, {formatDate(laporan.tanggal_lp)}</p>
-            </div>
-            <span className={`ml-auto inline-flex rounded-full px-3 py-1 text-xs font-semibold ${laporan.laka_tunggal ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-              {laporan.laka_tunggal ? 'Laka Tunggal' : 'Multi Pihak'}
-            </span>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 text-sm">
-            <Field label="Nomor LP" value={laporan.no_lp} />
-            <Field label="Polres" value={laporan.polres?.nama || '-'} />
-            <Field label="Tanggal Kejadian" value={formatDate(laporan.tanggal_laka)} />
-            <Field label="Hari Kejadian" value={laporan.hari_kejadian} />
-            <Field label="Tanggal LP" value={formatDate(laporan.tanggal_lp)} />
-            <Field label="Telat LP" value={`${laporan.telat_lp} hari`} />
-            <Field label="Laka Tunggal" value={laporan.laka_tunggal ? 'Ya' : 'Tidak'} />
-
-          </div>
-        </div>
-
-        {/* ── Lokasi ── */}
-        <Section icon={MapPin} title="Lokasi Kejadian">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-            <Field label="Kecamatan" value={laporan.kecamatan?.nama || '-'} />
-            <Field label="Kelurahan" value={laporan.kelurahan?.nama || '-'} />
-            <Field label="Lokasi Laka" value={laporan.lokasi_laka || '-'} />
-          </div>
-        </Section>
-
-        {/* ── Rumah Sakit ── */}
-        <Section icon={Hospital} title="Rumah Sakit">
-          <div className="grid gap-4 sm:grid-cols-2 text-sm">
-            <Field label="RS Wilayah Sendiri" value={laporan.rumah_sakit_id ? (mapRumahSakit.get(laporan.rumah_sakit_id) || '-') : '-'} />
-            <Field label="RS Wilayah Lain" value={laporan.rumah_sakit_wilayah || '-'} />
-          </div>
-        </Section>
-
         {/* ── Klasifikasi ── */}
         <Section icon={ShieldAlert} title="Klasifikasi Kecelakaan">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
@@ -199,6 +156,8 @@ export function LaporanDetailPage() {
                     <Field label="Tindak Lanjut" value={k.tindakLanjut?.nama || '-'} />
                     <Field label="Jenis Jaminan" value={k.jenisJaminan?.nama || '-'} />
                     <Field label="Keterjaminan" value={k.keterjaminan?.nama || '-'} />
+                    <Field label="RS Wilayah Sendiri" value={k.rumah_sakit_id ? (mapRumahSakit.get(k.rumah_sakit_id) || '-') : '-'} />
+                    <Field label="RS Wilayah Lain" value={k.rumah_sakit_wilayah || '-'} />
                   </div>
                 </div>
               ))}
