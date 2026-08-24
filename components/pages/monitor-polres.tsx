@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -319,7 +319,7 @@ export function MonitorPolresPage() {
   const [exporting, setExporting] = useState(false)
   const { success: toastSuccess, error: toastError } = useToast()
 
-  // Master data label lookup — di-cache 30 menit via TanStack Query.
+  // Master data label lookup â€” di-cache 30 menit via TanStack Query.
   const polresList = useMasterList('polres').data ?? []
   const kasusTabrakItems = useMasterList('kasusTabrak').data ?? []
   const faktorPenyebabItems = useMasterList('faktorPenyebab').data ?? []
@@ -351,7 +351,7 @@ export function MonitorPolresPage() {
     }
   }
 
-  // Data laporan (transaksional) tetap di-fetch langsung — bukan master data.
+  // Data laporan (transaksional) tetap di-fetch langsung â€” bukan master data.
   useEffect(() => {
     async function fetchData() {
       try {
@@ -372,16 +372,13 @@ export function MonitorPolresPage() {
       }
     }
     fetchData()
-  }, [])
+  }, [monthFilter, polresFilter])
 
   const filtered = laporan.filter((l) => {
     if (polresFilter !== 'all' && l.polres_id !== parseInt(polresFilter)) return false
     if (monthFilter) {
-      const d = new Date(l.tanggal_laka)
-      if (!isNaN(d.getTime())) {
-        const lpMonth = d.toISOString().slice(0, 7)
-        if (lpMonth !== monthFilter) return false
-      }
+      const lpMonth = l.tanggal_laka?.slice(0, 7)
+      if (lpMonth !== monthFilter) return false
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
