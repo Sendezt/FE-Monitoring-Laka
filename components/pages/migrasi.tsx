@@ -1092,6 +1092,35 @@ function RowDetail({ row, masters, detectedPolresId, detectedWilayahId, onEdit }
                       )}
                     </td>
 
+                    {/* Rumah Sakit — editable */}
+                    <td className="py-2 pr-3 min-w-[200px]">
+                      {masters ? (
+                        <div className="flex flex-col gap-1">
+                          <SearchableSelect
+                            options={rumahSakitOptions}
+                            value={k.rumah_sakit_id ?? null}
+                            placeholder="— Pilih —"
+                            onChange={(id) => onEdit((p) => {
+                              const item = masters.rumahSakit.find((x) => x.id === id)
+                              p.korban[i].rumah_sakit_id = id
+                              p.korban[i].rumah_sakit_nama = item?.nama ?? null
+                            })}
+                          />
+                          <input
+                            type="text"
+                            value={k.rumah_sakit_wilayah || ''}
+                            placeholder="RS Luar Wilayah..."
+                            className="w-full rounded-md border border-border bg-card px-2 py-1 text-[11px] text-foreground focus:outline-hidden focus:border-primary transition-colors"
+                            onChange={(e) => onEdit((p) => {
+                              p.korban[i].rumah_sakit_wilayah = e.target.value || null
+                            })}
+                          />
+                        </div>
+                      ) : (
+                        k.rumah_sakit_id ? (k.rumah_sakit_nama || `#${k.rumah_sakit_id}`) : (k.rumah_sakit_wilayah || '—')
+                      )}
+                    </td>
+
                     <td className="py-2 pr-3">
                       {k.kendaraan_index != null && payload.kendaraan[k.kendaraan_index]
                         ? (payload.kendaraan[k.kendaraan_index].nopol || `#${k.kendaraan_index}`)
